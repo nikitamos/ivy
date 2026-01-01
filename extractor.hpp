@@ -5,7 +5,6 @@
 #include "spirv_cross.hpp"
 #include <memory>
 #include <ostream>
-#include <unordered_map>
 
 namespace shbind {
 struct [[deprecated]] CxxModule {};
@@ -32,7 +31,6 @@ private:
   std::shared_ptr<HostType> ExtractType(spirv_cross::TypeID id);
   void ExtractAllTypes();
 
-  std::unordered_map<uint32_t, std::shared_ptr<HostType>> types_;
   const spirv_cross::Compiler &compiler_;
   GenerationOptions opts_;
   HostTypeFactory &type_factory_;

@@ -71,14 +71,7 @@ protected:
 
 struct HostStruct : public HostType {
   HostStruct(std::string name, std::vector<StructMem> &&mems)
-      : HostType{name}, members(std::move(mems)) {
-    std::cout << "CREATING STRUCT " << name << " {\n";
-    for (auto m : members) {
-      std::cout << "\t" << m.type->name << " " << m.name << "; // (" << m.offset
-                << ">>" << m.size << ")\n";
-    }
-    std::cout << "};" << std::endl;
-  }
+      : HostType{name}, members(std::move(mems)) {}
 
   std::vector<StructMem> members;
 

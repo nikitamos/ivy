@@ -1,15 +1,12 @@
 #include "cxx-writer.hpp"
 #include "extractor.hpp"
 #include "host-types.hpp"
-#include "spirv_glsl.hpp"
 #include <cstdint>
 #include <fstream>
 #include <iostream>
 #include <stdexcept>
 #include <string>
 #include <vector>
-
-namespace spvc = spirv_cross;
 
 namespace shbind {
 std::vector<char> ReadShader(const std::string &path) {

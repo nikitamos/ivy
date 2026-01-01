@@ -14,19 +14,13 @@ void BindingsExtractor::ExtractPushConstants() {
   for (const auto push_const : constants) {
     std::cout << "dealing with push constant `" << push_const.name
               << "` (base id: " << push_const.base_type_id << " )" << std::endl;
-    // ExtractType(push_const.type_id);
     ExtractType(push_const.base_type_id);
   }
+  // What about push constant ranges?
 }
 void BindingsExtractor::ExtractSpecializationConstants() {}
 std::shared_ptr<HostType> BindingsExtractor::ExtractType(spc::TypeID id) {
   const auto &type = compiler_.get_type(id);
-  auto name = compiler_.get_name(id);
-  std::cout << name << ":: ID:" << id << " alias:" << type.type_alias
-            << " width:" << type.width << " base:" << type.basetype
-            << " mem-count:" << type.member_types.size()
-            << " pointer:" << type.pointer << "array-dim:" << type.array.size()
-            << " vecXcols:" << type.vecsize << "x" << type.columns << std::endl;
   auto res = type_factory_.GetType(type, compiler_);
   return res;
 }

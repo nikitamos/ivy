@@ -63,8 +63,6 @@ HostTypeFactory::GetPrimitiveTypeName(spirv_cross::SPIRType::BaseType base) {
   case spc::SPIRType::Double:
     return kDouble;
   default:
-    std::cerr << "WARNING(GetPrimitiveTypeName): non-primitive type: " << base
-              << std::endl;
     return std::nullopt;
   }
 }
@@ -74,6 +72,12 @@ HostTypeFactory::CreateStruct(const spirv_cross::SPIRType &type,
                               const spirv_cross::Compiler &compiler) {
   assert(type.member_type_index_redirection.size() == 0 &&
          "member redirection is unsupported yet");
+  auto _name = compiler.get_name(type.self);
+  std::cout << _name << ":: ID:" << type.self << " alias:" << type.type_alias
+            << " width:" << type.width << " base:" << type.basetype
+            << " mem-count:" << type.member_types.size()
+            << " pointer:" << type.pointer << "array-dim:" << type.array.size()
+            << " vecXcols:" << type.vecsize << "x" << type.columns << std::endl;
   std::vector<StructMem> members;
   members.reserve(type.member_types.size());
 
@@ -87,8 +91,6 @@ HostTypeFactory::CreateStruct(const spirv_cross::SPIRType &type,
                 << "has empty name\n";
       mem_name = "member" + std::to_string(i);
     }
-    std::cout << compiler.get_member_name(type.self, i) << ": size=" << mem_size
-              << " oft=" << mem_oft << std::endl;
     members.emplace_back(
         GetType(compiler.get_type(type.member_types[i]), compiler), mem_name,
         mem_size, mem_oft);
@@ -126,6 +128,7 @@ std::shared_ptr<HostType>
 HostTypeFactory::CreateFallbackType(const spc::SPIRType &type,
                                     const spc::Compiler &compiler) {
   // TODO: array support!
+  assert(type.array.size() == 0 && "Arrays are not supported yet!");
   return std::make_shared<HostArray>(
       GetPrimitiveTypeName(spc::SPIRType::UByte).value(),
       type.width / 8 * type.columns * type.vecsize);
@@ -138,7 +141,9 @@ std::string HostTypeFactory::GetTypeName(spirv_cross::SPIRType &type) {
 std::vector<std::shared_ptr<HostType>>
 HostTypeFactory::GetAllKnownTypes() const {
   std::vector<std::shared_ptr<HostType>> types(type_map_.size());
-  std::transform(type_map_.cbegin(), type_map_.cend(), types.begin(),
+  // Note: the map is traversed in reverse order to ensure the dependencies
+  // are declared before dependent types
+  std::transform(type_map_.crbegin(), type_map_.crend(), types.begin(),
                  [](const auto &kv) { return kv.second; });
   return types;
 }
