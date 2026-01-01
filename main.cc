@@ -1,4 +1,5 @@
 #include "extractor.hpp"
+#include "host-types.hpp"
 #include "spirv_glsl.hpp"
 #include <cstdint>
 #include <fstream>
@@ -31,7 +32,8 @@ int main(int argc, char **argv) {
   if (src.size() % 4 != 0) {
     throw std::runtime_error("SPIR-V size is invalid");
   }
-//   auto ep = core.get_entry_point("VertexMain", spv::ExecutionModelVertex);
-  shbind::BindingsExtractor extractor(std::move(core));
+  shbind::HostTypeFactory factory;
+  //   auto ep = core.get_entry_point("VertexMain", spv::ExecutionModelVertex);
+  shbind::BindingsExtractor extractor(std::move(core), factory);
   extractor.ExtractBindings();
 }
