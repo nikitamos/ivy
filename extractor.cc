@@ -1,6 +1,8 @@
 #include "extractor.hpp"
 #include "host-types.hpp"
 #include "spirv_common.hpp"
+#include "writer.hpp"
+
 #include <iostream>
 #include <memory>
 
@@ -25,7 +27,7 @@ std::shared_ptr<HostType> BindingsExtractor::ExtractType(spc::TypeID id) {
             << " mem-count:" << type.member_types.size()
             << " pointer:" << type.pointer << "array-dim:" << type.array.size()
             << " vecXcols:" << type.vecsize << "x" << type.columns << std::endl;
-  auto res = type_factory_.CreateType(type, compiler_);
+  auto res = type_factory_.GetType(type, compiler_);
   return res;
 }
 void BindingsExtractor::ExtractAllTypes() {}
@@ -34,15 +36,18 @@ shbind::CxxModule BindingsExtractor::ExtractBindings() {
   ExtractPushConstants();
   return CxxModule();
 }
+void BindingsExtractor::WriteToStream(std::ostream &out, IWriter &writer) {
+  // Write prelude
+  writer.WritePrelude(out);
+  // Write forward decls
+  auto types = type_factory_.GetAllKnownTypes();
+  for (auto t : types)
+    writer.FwdDeclareType(t, out);
+  // Write all types
+  for (auto t : types)
+    writer.DeclareType(t, out);
+  // Write classes for bindings
+  // End file
+  writer.EndWriting(out);
+}
 } // namespace shbind
-
-struct vec3 {
-  float x, y;
-  char tt;
-  float z;
-};
-
-struct Test {
-  bool b;
-  vec3 d;
-};

@@ -1,5 +1,7 @@
 #include "host-types.hpp"
 #include "spirv_common.hpp"
+#include "writer.hpp"
+#include <algorithm>
 #include <iostream>
 #include <memory>
 #include <optional>
@@ -76,20 +78,19 @@ HostTypeFactory::CreateStruct(const spirv_cross::SPIRType &type,
   members.reserve(type.member_types.size());
 
   for (int i = 0; i < type.member_types.size(); ++i) {
-    // compiler_.type_struct_member_offset(const SPIRType &type, uint32_t index)
     const auto &mem_type = compiler.get_type(type.member_types[i]);
     auto mem_size = compiler.get_declared_struct_member_size(type, i);
     auto mem_oft = compiler.type_struct_member_offset(type, i);
     auto mem_name = compiler.get_member_name(type.self, i);
     if (mem_name.empty()) {
-      std::cerr << "Warning: member " << i << "of type " << type.self
+      std::cerr << "Warning: member " << i << " of struct " << type.self
                 << "has empty name\n";
       mem_name = "member" + std::to_string(i);
     }
     std::cout << compiler.get_member_name(type.self, i) << ": size=" << mem_size
               << " oft=" << mem_oft << std::endl;
     members.emplace_back(
-        CreateType(compiler.get_type(type.member_types[i]), compiler), mem_name,
+        GetType(compiler.get_type(type.member_types[i]), compiler), mem_name,
         mem_size, mem_oft);
   }
   std::string name = compiler.get_name(type.self);
@@ -102,9 +103,11 @@ HostTypeFactory::CreateStruct(const spirv_cross::SPIRType &type,
 }
 
 std::shared_ptr<HostType>
-HostTypeFactory::CreateType(const spc::SPIRType &type,
-                            const spc::Compiler &compiler) {
-  // TODO: Try to read the type from the cache
+HostTypeFactory::GetType(const spc::SPIRType &type,
+                         const spc::Compiler &compiler) {
+  if (type_map_.contains(type.self)) {
+    return type_map_[type.self];
+  }
   auto host_type =
       CreatePrimitiveType(type.basetype, type.vecsize, type.columns);
   if (host_type == nullptr && type.basetype == spc::SPIRType::Struct) {
@@ -116,13 +119,57 @@ HostTypeFactory::CreateType(const spc::SPIRType &type,
     host_type = CreateFallbackType(type, compiler);
   }
   assert(host_type != nullptr && "failed to create host type");
-  // TODO: Add host_type to the cache
+  type_map_[type.self] = host_type;
   return host_type;
 }
 std::shared_ptr<HostType>
 HostTypeFactory::CreateFallbackType(const spc::SPIRType &type,
                                     const spc::Compiler &compiler) {
+  // TODO: array support!
   return std::make_shared<HostArray>(
-      GetPrimitiveTypeName(spc::SPIRType::UByte).value(), type.width);
+      GetPrimitiveTypeName(spc::SPIRType::UByte).value(),
+      type.width / 8 * type.columns * type.vecsize);
+}
+std::string HostTypeFactory::GetTypeName(spirv_cross::SPIRType &type) {
+  assert(0 && " i forgot why i had declared this method :(");
+  return "<NOT-IMPL>";
+}
+
+std::vector<std::shared_ptr<HostType>>
+HostTypeFactory::GetAllKnownTypes() const {
+  std::vector<std::shared_ptr<HostType>> types(type_map_.size());
+  std::transform(type_map_.cbegin(), type_map_.cend(), types.begin(),
+                 [](const auto &kv) { return kv.second; });
+  return types;
+}
+void HostType::AcceptDeclare(shbind::IWriter &writer, std::ostream &out) {
+  writer.DeclareHostType(this, out);
+}
+void HostType::AcceptFwdDeclare(IWriter &writer, std::ostream &out) {
+  writer.FwdDeclareHostType(this, out);
+}
+void HostStruct::AcceptFwdDeclare(IWriter &writer, std::ostream &out) {
+  writer.FwdDeclareStruct(this, out);
+}
+void HostStruct::AcceptDeclare(IWriter &writer, std::ostream &out) {
+  writer.DeclareHostStruct(this, out);
+}
+void HostArray::AcceptDeclare(IWriter &writer, std::ostream &out) {
+  writer.DeclareHostArray(this, out);
+}
+void HostArray::AcceptFwdDeclare(IWriter &writer, std::ostream &out) {
+  writer.DeclareHostArray(this, out);
+}
+void HostType::AcceptVarDeclare(IWriter &writer, const std::string &name,
+                                std::ostream &out) {
+  writer.VarDeclareHostType(this, name, out);
+}
+void HostStruct::AcceptVarDeclare(IWriter &writer, const std::string &name,
+                                  std::ostream &out) {
+  writer.VarDeclareStruct(this, name, out);
+}
+void HostArray::AcceptVarDeclare(IWriter &writer, const std::string &name,
+                                 std::ostream &out) {
+  writer.VarDeclareArray(this, name, out);
 }
 } // namespace shbind

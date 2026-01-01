@@ -4,10 +4,11 @@
 #include "spirv_common.hpp"
 #include "spirv_cross.hpp"
 #include <memory>
+#include <ostream>
 #include <unordered_map>
 
 namespace shbind {
-struct CxxModule {};
+struct [[deprecated]] CxxModule {};
 
 class BindingsExtractor {
 public:
@@ -17,6 +18,7 @@ public:
       : compiler_(std::move(compiler)), opts_(std::move(opts)),
         type_factory_(factory) {}
   CxxModule ExtractBindings();
+  void WriteToStream(std::ostream &out, IWriter &writer);
 
   BindingsExtractor(const BindingsExtractor &) = delete;
   BindingsExtractor(BindingsExtractor &&) = delete;

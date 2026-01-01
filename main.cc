@@ -1,3 +1,4 @@
+#include "cxx-writer.hpp"
 #include "extractor.hpp"
 #include "host-types.hpp"
 #include "spirv_glsl.hpp"
@@ -12,6 +13,7 @@ namespace spvc = spirv_cross;
 
 namespace shbind {
 std::vector<char> ReadShader(const std::string &path) {
+  int a = 3;
   std::ifstream shader_file(path, std::ios_base::ate | std::ios_base::binary);
   if (!shader_file.is_open()) {
     throw std::runtime_error("failed to open shader file");
@@ -33,7 +35,9 @@ int main(int argc, char **argv) {
     throw std::runtime_error("SPIR-V size is invalid");
   }
   shbind::HostTypeFactory factory;
-  //   auto ep = core.get_entry_point("VertexMain", spv::ExecutionModelVertex);
+  shbind::CxxWriter writer;
   shbind::BindingsExtractor extractor(std::move(core), factory);
+
   extractor.ExtractBindings();
+  extractor.WriteToStream(std::cout, writer);
 }
