@@ -13,7 +13,7 @@ void CxxWriter::FwdDeclareArray(HostArray *host_type, std::ostream &out) {
   // nop
 }
 void CxxWriter::DeclareHostStruct(HostStruct *type, std::ostream &out) {
-  Indent(out) << "struct " << type->name << " {\n";
+  Indent(out) << "struct [[gnu::packed]]" << type->name << " {\n";
   uint32_t cur_size = 0;
   static const std::string kPadPrefix = "_pad";
 
@@ -30,9 +30,9 @@ void CxxWriter::DeclareHostStruct(HostStruct *type, std::ostream &out) {
     DeclareVar(mem.type, mem.name, out);
     cur_size += mem.size;
   }
-//   if (cur_size != type->size) {
-  
-//   }
+  //   if (cur_size != type->size) {
+
+  //   }
   DecreaseIndent();
   Indent(out) << "};\n";
 }
@@ -43,11 +43,13 @@ void CxxWriter::DeclareHostType(HostType *type, std::ostream &out) {
   // nop
 }
 void CxxWriter::EndWriting(std::ostream &out) {
-  Indent(out) << "#pragma pack(pop)\n";
+  // Indent(out) << "#pragma pack(pop)\n";
 }
 void CxxWriter::WritePrelude(std::ostream &out) {
+  Indent(out) << "// NOTE: This file is auto-generated\n\n";
   Indent(out) << "#include <cstdint>\n";
-  Indent(out) << "#pragma pack(push, 1)\n";
+  Indent(out) << "#include <vertex-attribs.hpp>\n";
+  // Indent(out) << "#pragma pack(push, 1)\n";
 }
 
 void CxxWriter::VarDeclareArray(HostArray *host_type, std::string name,
@@ -62,5 +64,25 @@ void CxxWriter::VarDeclareStruct(HostStruct *host_type, std::string name,
 void CxxWriter::VarDeclareHostType(HostType *host_type, std::string name,
                                    std::ostream &out) {
   Indent(out) << host_type->name << ' ' << name << ";\n";
+}
+void CxxWriter::WriteVertexAttributeInterface(
+    const std::vector<std::pair<std::string, api::VertexAttribute>> &attrs,
+    std::ostream &out) {
+  static const std::string kStructName = "VertexShaderInputAttribute";
+  Indent(out) << "struct " << kStructName
+              << " : public "
+                 "shbind::api::VertexShaderInputBase<"
+              << attrs.size() << "> {\n";
+  IncreaseIndent();
+  for (auto &[name, attr] : attrs) {
+    Indent(out) << "static constexpr inline const shbind::api::VertexAttribute "
+                << name << "{ .location = " << attr.location
+                << ", .component = " << attr.component
+                << ", .format = " << (uint64_t)attr.format << "};\n";
+  }
+  Indent(out) << "constexpr void SelfInit();\n";
+  Indent(out) << "constexpr " << kStructName << "() { SelfInit(); }\n";
+  DecreaseIndent();
+  Indent(out) << "};" << std::endl;
 }
 } // namespace shbind

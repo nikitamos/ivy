@@ -3,6 +3,9 @@
 #include <memory>
 #include <ostream>
 #include <string>
+#include <utility>
+
+#include "api/vertex-attribs.hpp"
 
 namespace shbind {
 class IWriter {
@@ -17,6 +20,9 @@ public:
   void DeclareVar(std::shared_ptr<HostType> type, const std::string &name, std::ostream &out) {
     type->AcceptVarDeclare(*this, name, out);
   }
+  virtual void WriteVertexAttributeInterface(
+      const std::vector<std::pair<std::string, api::VertexAttribute>> &attrs,
+      std::ostream &out) = 0;
   virtual ~IWriter() {}
 
   virtual void WritePrelude(std::ostream &out) = 0;
