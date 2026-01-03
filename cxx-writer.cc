@@ -1,5 +1,6 @@
 #include "cxx-writer.hpp"
 #include "host-types.hpp"
+#include "metadata.hpp"
 #include <string>
 
 namespace shbind {
@@ -13,7 +14,7 @@ void CxxWriter::FwdDeclareArray(HostArray *host_type, std::ostream &out) {
   // nop
 }
 void CxxWriter::DeclareHostStruct(HostStruct *type, std::ostream &out) {
-  Indent(out) << "struct [[gnu::packed]]" << type->name << " {\n";
+  Indent(out) << "struct [[gnu::packed]] " << type->name << " {\n";
   uint32_t cur_size = 0;
   static const std::string kPadPrefix = "_pad";
 
@@ -66,15 +67,14 @@ void CxxWriter::VarDeclareHostType(HostType *host_type, std::string name,
   Indent(out) << host_type->name << ' ' << name << ";\n";
 }
 void CxxWriter::WriteVertexAttributeInterface(
-    const std::vector<std::pair<std::string, api::VertexAttribute>> &attrs,
-    std::ostream &out) {
+    const std::vector<VertexAttributeMetadata> &attrs, std::ostream &out) {
   static const std::string kStructName = "VertexShaderInputAttribute";
   Indent(out) << "struct " << kStructName
               << " : public "
                  "shbind::api::VertexShaderInputBase<"
               << attrs.size() << "> {\n";
   IncreaseIndent();
-  for (auto &[name, attr] : attrs) {
+  for (auto &[name, max_component, attr] : attrs) {
     Indent(out) << "static constexpr inline const shbind::api::VertexAttribute "
                 << name << "{ .location = " << attr.location
                 << ", .component = " << attr.component

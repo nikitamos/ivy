@@ -1,17 +1,37 @@
 #include "extractor.hpp"
 #include "api/vertex-attribs.hpp"
 #include "host-types.hpp"
+#include "metadata.hpp"
 #include "spirv.hpp"
 #include "spirv_common.hpp"
 #include "vulkan/vulkan.hpp"
 #include "writer.hpp"
 
+#include <algorithm>
 #include <cctype>
+#include <concepts>
 #include <cstdint>
 #include <iostream>
 #include <memory>
+#include <numeric>
+#include <ostream>
 #include <stdexcept>
 #include <string>
+#include <vector>
+
+// ceil(a/b)
+template <std::unsigned_integral T>
+static inline constexpr T ceildiv(T a, T b) {
+  return (a + b - 1) / b;
+}
+
+static inline void Throw64BitLocationUnshareble(uint32_t location) {
+  throw std::runtime_error(
+      "We do not support the same attribute location (" +
+      std::to_string(location) +
+      ") to be shared by tail of 64bit vector and another variable. "
+      "Sufferest thyself.");
+}
 
 namespace shbind {
 namespace spc = spirv_cross;
@@ -71,10 +91,14 @@ void BindingsExtractor::WriteToStream(std::ostream &out, IWriter &writer) {
   for (auto t : types)
     writer.DeclareType(t, out);
   // Write classes for bindings
-  writer.WriteVertexAttributeInterface(vertex_attrs_, out);
+  std::vector<VertexAttributeMetadata> attrs(vertex_attrs_.size());
+  std::transform(vertex_attrs_.begin(), vertex_attrs_.end(), attrs.begin(),
+                 [](auto attr) { return attr.second; });
+  writer.WriteVertexAttributeInterface(attrs, out);
   // End file
   writer.EndWriting(out);
 }
+
 void BindingsExtractor::ExtractVertexAttributes(
     const std::string &entry_point_name) {
   const auto point_desc =
@@ -88,12 +112,17 @@ void BindingsExtractor::ExtractVertexAttributes(
   for (const auto &var : entry_point.interface_variables) {
     if (compiler_.get_storage_class(var) == spv::StorageClassInput &&
         compiler_.get_decoration(var, spv::DecorationBuiltIn) == 0) {
+
       uint32_t location =
           compiler_.get_decoration(var, spv::DecorationLocation);
-      uint32_t component =
+      uint32_t initial_component =
           compiler_.get_decoration(var, spv::DecorationComponent);
 
-      // TODO: move this logic to the TypeToFormat function
+      if (tail64_attrs_.contains(location)) {
+        Throw64BitLocationUnshareble(location);
+      }
+
+      // FIXME: follow the Vulkan spec in unwrapping structs and array
       auto type = compiler_.get_type_from_variable(var);
       if (type.member_types.size() > 1) {
         throw std::runtime_error(
@@ -103,14 +132,90 @@ void BindingsExtractor::ExtractVertexAttributes(
       }
 
       vk::Format fmt = TypeToFormat(type);
-      std::cout << "format: " << (uint64_t)fmt << std::endl;
       std::string name = CanonicalizeName(compiler_.get_name(var));
       if (name.empty()) {
-        name =
-            "inp" + std::to_string(location) + '_' + std::to_string(component);
+        name = "inp" + std::to_string(location) + '_' +
+               std::to_string(initial_component);
       }
-      vertex_attrs_.emplace_back(
-          name, api::VertexAttribute{location, component, fmt});
+
+      // Some stupid formats, like vectors of 64bit types and matrices, occupy
+      // several consecutive locations. But still, at least matrices, need to be
+      // passed as distinct VkVertexInputAttributeDescription's (i.e. one
+      // attribute per location). See the following link for details.
+      // https://docs.vulkan.org/spec/latest/chapters/fxvertex.html#fxvertex-attrib-location
+
+      uint32_t width = type.width == 64 ? 2 : 1;
+      uint32_t col_per_item = ceildiv(width * type.vecsize, 16u);
+      // The number of components occupied in the `location` attribute. The tail
+      // of 64bit vectors is ignored.
+      uint32_t occupied_comps = std::max(4u, width * type.vecsize);
+      if (col_per_item > 2) {
+        throw std::logic_error("As of Vulkan<=1.4.335, a variable can not "
+                               "occupy more than two locations. Has this "
+                               "limitation been removed?");
+      }
+      // Matrices are passed as arrays, right?
+      // Therefore type.columns must always be 1?
+      if (type.columns != 1) {
+        std::cerr << "A pathological case encountered: matrix in vertex "
+                     "attribute binding (variable id "
+                  << var
+                  << "). Generally matrices should be "
+                     "passed as arrays; generated output may be invalid."
+                  << std::endl;
+      }
+      uint32_t occupied_locs =
+          std::reduce(type.array.begin(), type.array.end(), type.columns,
+                      [](auto x, auto y) { return x * y; });
+
+      // Note: two variables in the same location CAN NOT overlap.
+      for (uint32_t col = 0; col < occupied_locs; col += col_per_item) {
+        // We declare just one attribute for each 64-bit vector (corresponding
+        // to the first locations), but I am not sure that it is the correct
+        // behaviour.
+        uint32_t cur_loc = location + col;
+        if (col_per_item == 2) {
+          if (vertex_attrs_.contains(cur_loc + 1)) {
+            Throw64BitLocationUnshareble(cur_loc + 1);
+          }
+          tail64_attrs_.insert(cur_loc + 1);
+        }
+        if (vertex_attrs_.contains(cur_loc)) {
+          std::cerr << "Some variables share the same location. Such situation "
+                       "is valid, but untested. Output may be invalid."
+                    << std::endl;
+          auto &cur_attr = vertex_attrs_[cur_loc];
+          // TODO: Decide how to change the name
+          cur_attr.max_component = std::max(
+              cur_attr.max_component, initial_component + occupied_comps - 1);
+          cur_attr.attribute.component =
+              std::min(cur_attr.attribute.component, initial_component);
+          uint32_t used_components =
+              cur_attr.max_component - cur_attr.attribute.component + 1;
+          // Note: according to the spec, only variables of same base types are
+          // allowed to share the location.
+          //
+          // I'm not sure that extending format is the correct way to pass
+          // multiple variable into the same component. I haven't found the
+          // correct way in the spec. But it is definitely valid with
+          // maintenance4
+          cur_attr.attribute.format = TypeToFormat(type, used_components);
+
+          // Note: if 64-bit vector occupies two locations, the max component
+          // of the second location will be either occupied by its tail
+          // (in this case there is no other variables in the 2nd location, and
+          // we are shouldn't set its max_component) or by another variable
+          // (max_component will be properly when handling that variable).
+          // Thus we don't care about the second location.
+        } else {
+          vertex_attrs_.emplace(
+              location + col,
+              VertexAttributeMetadata{name + "_loc" +
+                                          std::to_string(location + col),
+                                      initial_component + occupied_comps,
+                                      {location, initial_component, fmt}});
+        }
+      }
     }
   }
 }
@@ -132,7 +237,11 @@ BindingsExtractor::GetEntryPointOrFirst(const std::string &name,
   }
   return std::nullopt;
 }
-vk::Format BindingsExtractor::TypeToFormat(const spirv_cross::SPIRType &type) {
+vk::Format BindingsExtractor::TypeToFormat(const spirv_cross::SPIRType &type,
+                                           uint32_t override_vecsize) {
+  if (override_vecsize == 0) {
+    override_vecsize = type.vecsize;
+  }
 #include "type2fmt.inc"
 }
 std::string &BindingsExtractor::CanonicalizeName(std::string &name) const {
@@ -153,5 +262,12 @@ std::string BindingsExtractor::CanonicalizeName(const std::string &name) const {
   std::string copy(name);
   CanonicalizeName(copy);
   return copy;
+}
+uint32_t
+BindingsExtractor::GetLocationFormatComponentCount(vk::Format fmt) const {
+  // clang-format off
+#include "fmtcomp.inc"
+else return 0;
+  // clang-format on
 }
 } // namespace shbind

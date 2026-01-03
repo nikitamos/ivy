@@ -1,4 +1,5 @@
 #pragma once
+#include "metadata.hpp"
 #include "writer.hpp"
 #include <ostream>
 
@@ -11,7 +12,7 @@ public:
   void EndWriting(std::ostream &out) override;
 
   void WriteVertexAttributeInterface(
-      const std::vector<std::pair<std::string, api::VertexAttribute>> &attrs,
+      const std::vector<VertexAttributeMetadata> &attrs,
       std::ostream &out) override;
 
   void DeclareHostType(HostType *type, std::ostream &out) override;

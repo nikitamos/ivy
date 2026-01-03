@@ -1,14 +1,17 @@
 #pragma once
 #include "host-types.hpp"
+#include "metadata.hpp"
 #include "options.hpp"
 #include "spirv.hpp"
 #include "spirv_common.hpp"
 #include "spirv_cross.hpp"
 #include "vulkan/vulkan.hpp"
+#include <cstdint>
 #include <memory>
 #include <optional>
 #include <ostream>
 #include <string>
+#include <unordered_set>
 #include <utility>
 
 #include "api/vertex-attribs.hpp"
@@ -32,7 +35,9 @@ public:
   BindingsExtractor &operator=(const BindingsExtractor &) = delete;
   BindingsExtractor &operator=(BindingsExtractor &&) = delete;
 
-  vk::Format TypeToFormat(const spirv_cross::SPIRType &type);
+  vk::Format TypeToFormat(const spirv_cross::SPIRType &type,
+                          uint32_t override_vecsize = 0);
+  uint32_t GetLocationFormatComponentCount(vk::Format fmt) const;
 
   std::string &CanonicalizeName(std::string &name) const;
   [[nodiscard]]
@@ -55,6 +60,7 @@ private:
   const spirv_cross::Compiler &compiler_;
   GenerationOptions opts_;
   HostTypeFactory &type_factory_;
-  std::vector<std::pair<std::string, api::VertexAttribute>> vertex_attrs_;
+  std::map<uint32_t, VertexAttributeMetadata> vertex_attrs_;
+  std::unordered_set<uint32_t> tail64_attrs_;
 };
 } // namespace shbind

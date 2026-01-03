@@ -6,6 +6,7 @@
 #include <utility>
 
 #include "api/vertex-attribs.hpp"
+#include "metadata.hpp"
 
 namespace shbind {
 class IWriter {
@@ -21,8 +22,7 @@ public:
     type->AcceptVarDeclare(*this, name, out);
   }
   virtual void WriteVertexAttributeInterface(
-      const std::vector<std::pair<std::string, api::VertexAttribute>> &attrs,
-      std::ostream &out) = 0;
+      const std::vector<VertexAttributeMetadata> &attrs, std::ostream &out) = 0;
   virtual ~IWriter() {}
 
   virtual void WritePrelude(std::ostream &out) = 0;

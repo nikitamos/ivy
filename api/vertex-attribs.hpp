@@ -16,7 +16,7 @@ struct VertexShaderInputBase {
     VertexShaderInputBase &pool;
     const size_t buf_id;
     constexpr void Bind(VertexAttribute vert_attr, size_t mem_offset) {
-      auto &attr = pool.attrs[vert_attr.location];
+      auto &attr = pool.attrs[pool.used_attrs++];
       attr.setBinding(buf_id);
       attr.setLocation(vert_attr.location);
       attr.setFormat(vert_attr.format);
@@ -43,10 +43,11 @@ struct VertexShaderInputBase {
   CreateInfo(vk::PipelineVertexInputStateCreateFlags flags) const {
     return vk::PipelineVertexInputStateCreateInfo(
         vk::StructureType::ePipelineVertexInputStateCreateInfo, nullptr, flags,
-        bindings.size(), bindings.data(), used_bufs, attrs.data());
+        used_bufs, bindings.data(), attrs.size(), attrs.data());
   }
 
   uint32_t used_bufs = 0;
+  uint32_t used_attrs = 0;
   std::array<vk::VertexInputBindingDescription, VBufLimit> bindings;
   // The number of locations is determined from the SPIR-V module
   std::array<vk::VertexInputAttributeDescription, VAttrCount> attrs;
