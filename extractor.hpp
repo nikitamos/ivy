@@ -45,6 +45,7 @@ public:
 
 private:
   void ExtractPushConstants();
+  void ExtractDescriptorSets();
   void ExtractSpecializationConstants();
   void ExtractVertexAttributes(const std::string &entry_point = "");
   std::shared_ptr<HostType> ExtractType(spirv_cross::TypeID id);

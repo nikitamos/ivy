@@ -78,6 +78,7 @@ void BindingsExtractor::ExtractAllTypes() {}
 shbind::CxxModule BindingsExtractor::ExtractBindings() {
   ExtractPushConstants();
   ExtractVertexAttributes();
+  ExtractDescriptorSets();
   return CxxModule();
 }
 void BindingsExtractor::WriteToStream(std::ostream &out, IWriter &writer) {
@@ -269,5 +270,28 @@ BindingsExtractor::GetLocationFormatComponentCount(vk::Format fmt) const {
 #include "fmtcomp.inc"
 else return 0;
   // clang-format on
+}
+void BindingsExtractor::ExtractDescriptorSets() {
+  auto resources = compiler_.get_shader_resources();
+  for (const auto &buf : resources.storage_buffers) {
+    type_factory_.GetType(compiler_.get_type(buf.type_id), compiler_);
+    std::cout << "storage " << buf.id << " bound to ("
+              << compiler_.get_decoration(buf.id, spv::DecorationDescriptorSet)
+              << ", "
+              << compiler_.get_decoration(buf.id, spv::DecorationBinding)
+              << ")\n";
+  }
+  for (const auto &buf : resources.uniform_buffers) {
+    type_factory_.GetType(compiler_.get_type(buf.type_id), compiler_);
+    std::cout << "uniform " << buf.id << " bound to ("
+              << compiler_.get_decoration(buf.id, spv::DecorationDescriptorSet)
+              << ", "
+              << compiler_.get_decoration(buf.id, spv::DecorationBinding)
+              << ")\n";
+  }
+  // for (const auto &buf : resources.) {
+  //     type_factory_.GetType(compiler_.get_type_from_variable(buf.id),
+  //     compiler_);
+  //   }
 }
 } // namespace shbind

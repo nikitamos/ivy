@@ -78,7 +78,8 @@ void CxxWriter::WriteVertexAttributeInterface(
     Indent(out) << "static constexpr inline const shbind::api::VertexAttribute "
                 << name << "{ .location = " << attr.location
                 << ", .component = " << attr.component
-                << ", .format = " << (uint64_t)attr.format << "};\n";
+                << ", .format = vk::Format(" << (uint64_t)attr.format
+                << ")};\n";
   }
   Indent(out) << "constexpr void SelfInit();\n";
   Indent(out) << "constexpr " << kStructName << "() { SelfInit(); }\n";
