@@ -2,6 +2,8 @@
 #include "spirv_common.hpp"
 #include "writer.hpp"
 #include <algorithm>
+#include <glm/detail/qualifier.hpp>
+#include <glm/glm.hpp>
 #include <iostream>
 #include <memory>
 #include <optional>
@@ -22,15 +24,23 @@ static const std::string kFloat = "float";
 static const std::string kDouble = "double";
 
 std::shared_ptr<HostType>
-HostTypeFactory::CreatePrimitiveType(spc::SPIRType::BaseType base, int vec_dim,
+HostTypeFactory::CreatePrimitiveType(spc::SPIRType::BaseType base, int rows,
                                      int cols) {
-  if (vec_dim == 1 && cols == 1) {
-    auto name = GetPrimitiveTypeName(base);
-    if (name.has_value()) {
+  auto name = GetPrimitiveTypeName(base);
+  if (!name.has_value()) {
+    return nullptr;
+  }
+  if (cols == 1) {
+    if (rows == 1) {
       return std::make_shared<HostType>(name.value());
     }
+    return std::make_shared<HostType>("glm::vec<" + std::to_string(rows) +
+                                      ", " + name.value() + ">");
+  } else {
+    return std::make_shared<HostType>("glm::mat<" + std::to_string(cols) +
+                                      ", " + std::to_string(rows) + ", " +
+                                      name.value() + ">");
   }
-  return nullptr;
 }
 
 const std::optional<std::string>

@@ -5,6 +5,7 @@
 #include "spirv.hpp"
 #include "spirv_common.hpp"
 #include "spirv_cross.hpp"
+#include "spirv_cross_containers.hpp"
 #include "vulkan/vulkan.hpp"
 #include <cstdint>
 #include <memory>
@@ -47,6 +48,9 @@ private:
   void ExtractPushConstants();
   void ExtractDescriptorSets();
   void ExtractSpecializationConstants();
+  void ExtractDescriptorBindingsOfType(
+      const spirv_cross::SmallVector<spirv_cross::Resource> &resources,
+      vk::DescriptorType type);
   void ExtractVertexAttributes(const std::string &entry_point = "");
   std::shared_ptr<HostType> ExtractType(spirv_cross::TypeID id);
   void ExtractAllTypes();
@@ -63,5 +67,6 @@ private:
   HostTypeFactory &type_factory_;
   std::map<uint32_t, VertexAttributeMetadata> vertex_attrs_;
   std::unordered_set<uint32_t> tail64_attrs_;
+  std::map<uint32_t, DescriptorSetMetadata> descriptor_sets_;
 };
 } // namespace shbind

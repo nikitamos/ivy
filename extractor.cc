@@ -1,4 +1,5 @@
 #include "extractor.hpp"
+#include "api/descriptor-sets.hpp"
 #include "api/vertex-attribs.hpp"
 #include "host-types.hpp"
 #include "metadata.hpp"
@@ -18,6 +19,7 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
+#include <vulkan/vulkan_to_string.hpp>
 
 // ceil(a/b)
 template <std::unsigned_integral T>
@@ -271,25 +273,71 @@ else return 0;
 }
 void BindingsExtractor::ExtractDescriptorSets() {
   auto resources = compiler_.get_shader_resources();
-  for (const auto &buf : resources.storage_buffers) {
-    type_factory_.GetType(compiler_.get_type(buf.type_id), compiler_);
-    std::cout << "storage " << buf.id << " bound to ("
-              << compiler_.get_decoration(buf.id, spv::DecorationDescriptorSet)
-              << ", "
-              << compiler_.get_decoration(buf.id, spv::DecorationBinding)
-              << ")\n";
+  // FIXME: The following resources are not extracted for now:
+  // sample weight image;
+  // block matching image; input attachment;
+  // mutable
+
+  // dynamic buffers and inline uniforms from the shader's perspective are
+  // indistinguishable from normal buffers and uniforms
+
+  // It turns out that OpTypeSampledImage in SPIR-V != 'sampled image' in
+  // Vulkan.
+  // Actual correspondence is summarized below:
+  // SPIR-V Type                         Vulkan resource
+  // OpTypeSampler                       sampler
+  // OpTypeImage (Sampled=1)             sampled image
+  // OpTypeSampledImage (...)            combined image sampler
+  // OpTypeImage(Sampled=<1|2>,Dim=Buf)  <uniform|storage> texel buffer
+  // See also:
+  // https://docs.vulkan.org/spec/latest/chapters/interfaces.html#interfaces-resources-descset
+  ExtractDescriptorBindingsOfType(resources.separate_samplers,
+                                  vk::DescriptorType::eSampler);
+  ExtractDescriptorBindingsOfType(resources.sampled_images,
+                                  vk::DescriptorType::eCombinedImageSampler);
+  ExtractDescriptorBindingsOfType(resources.separate_images,
+                                  vk::DescriptorType::eSampledImage);
+  ExtractDescriptorBindingsOfType(resources.storage_images,
+                                  vk::DescriptorType::eStorageImage);
+
+  ExtractDescriptorBindingsOfType(resources.uniform_buffers,
+                                  vk::DescriptorType::eUniformBuffer);
+  ExtractDescriptorBindingsOfType(resources.storage_buffers,
+                                  vk::DescriptorType::eStorageBuffer);
+  ExtractDescriptorBindingsOfType( // TODO: KHR or NV?
+      resources.acceleration_structures,
+      vk::DescriptorType::eAccelerationStructureKHR);
+  ExtractDescriptorBindingsOfType(resources.tensors,
+                                  vk::DescriptorType::eTensorARM);
+  for (const auto &[id, set] : descriptor_sets_) {
+    std::cout << "DESCRIPTOR SET " << id << "\n";
+    for (size_t i = 0; i < set.bindings.size(); ++i) {
+      std::cout << "binding " << set.bindings[i].name << " (" << i << ") -> "
+                << vk::to_string(set.bindings[i].binding.descriptorType)
+                << std::endl;
+    }
   }
-  for (const auto &buf : resources.uniform_buffers) {
-    type_factory_.GetType(compiler_.get_type(buf.type_id), compiler_);
-    std::cout << "uniform " << buf.id << " bound to ("
-              << compiler_.get_decoration(buf.id, spv::DecorationDescriptorSet)
-              << ", "
-              << compiler_.get_decoration(buf.id, spv::DecorationBinding)
-              << ")\n";
+}
+void BindingsExtractor::ExtractDescriptorBindingsOfType(
+    const spc::SmallVector<spc::Resource> &resources,
+    vk::DescriptorType desc_type) {
+  for (const auto &res : resources) {
+    uint32_t set =
+        compiler_.get_decoration(res.id, spv::DecorationDescriptorSet);
+    uint32_t binding = compiler_.get_decoration(res.id, spv::DecorationBinding);
+    auto &bindings = descriptor_sets_[set].bindings;
+    auto name = compiler_.get_name(res.id);
+    if (name.empty()) {
+      name = compiler_.get_fallback_name(res.id);
+    }
+    // TODO: discard excess struct layer?
+    // For images it is inapplicable
+    auto type = ExtractType(res.base_type_id);
+    bindings.emplace_back(
+        vk::DescriptorSetLayoutBinding{
+            binding, desc_type, 0 /* TODO: count */,
+            vk::ShaderStageFlagBits::eAll /* TODO?: select stages */, nullptr},
+        name, type);
   }
-  // for (const auto &buf : resources.) {
-  //     type_factory_.GetType(compiler_.get_type_from_variable(buf.id),
-  //     compiler_);
-  //   }
 }
 } // namespace shbind
