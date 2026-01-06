@@ -145,16 +145,14 @@ void BindingsExtractor::ExtractVertexAttributes(
       // attribute per location). See the following link for details.
       // https://docs.vulkan.org/spec/latest/chapters/fxvertex.html#fxvertex-attrib-location
 
+      // Number of components occupied by the base type
       uint32_t width = type.width == 64 ? 2 : 1;
-      uint32_t col_per_item = ceildiv(width * type.vecsize, 16u);
+      uint32_t col_per_item =
+          ceildiv(width * type.vecsize, 4u /* len of location */);
       // The number of components occupied in the `location` attribute. The tail
       // of 64bit vectors is ignored.
       uint32_t occupied_comps = std::max(4u, width * type.vecsize);
-      if (col_per_item > 2) {
-        throw std::logic_error("As of Vulkan<=1.4.335, a variable can not "
-                               "occupy more than two locations. Has this "
-                               "limitation been removed?");
-      }
+
       // Matrices are passed as arrays, right?
       // Therefore type.columns must always be 1?
       if (type.columns != 1) {
