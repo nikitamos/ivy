@@ -1,9 +1,33 @@
+// #define VULKAN_HPP_USE_REFLECT 1
 #include "cxx-writer.hpp"
 #include "host-types.hpp"
 #include "metadata.hpp"
 #include <string>
 
 namespace shbind {
+template <typename T> struct PrintMember {
+  PrintMember(T mem, std::ostream &out) {
+    if constexpr (std::is_enum_v<T>) {
+      out << "{" << static_cast<std::underlying_type_t<T>>(mem) << "},\n";
+    } else {
+      out << "{" << mem << "},\n";
+    }
+  }
+};
+template <typename F> struct PrintMember<vk::Flags<F>> {
+  PrintMember(vk::Flags<F> mem, std::ostream &out) {
+    out << "{" << static_cast<vk::Flags<F>::MaskType>(mem) << "},\n";
+  }
+};
+template <typename... T>
+inline void CxxWriter::DeclareInitializerList(std::tuple<const T &...> params,
+                                              std::ostream &out) {
+  out << "{ ";
+  std::apply([&out](const T &...args) { ((PrintMember(args, out)), ...); },
+             params);
+  out << "}";
+}
+
 void CxxWriter::FwdDeclareHostType(HostType *host_type, std::ostream &out) {
   // nop
 }
@@ -85,5 +109,48 @@ void CxxWriter::WriteVertexAttributeInterface(
   Indent(out) << "constexpr " << kStructName << "() { SelfInit(); }\n";
   DecreaseIndent();
   Indent(out) << "};" << std::endl;
+}
+
+void CxxWriter::WriteDescriptorSetStruct(const DescriptorSetMetadata &set,
+                                         std::ostream &out, uint32_t idx) {
+  std::string struct_name = "DescriptorSet" + std::to_string(idx) + "Layout";
+  out << "struct " << struct_name << " {\n";
+  IncreaseIndent();
+  for (const auto &binding : set.bindings) {
+    // Note: set name is unknown!
+    Indent(out) << "vk::DescriptorSetLayoutBinding " << binding.name << "\n";
+    // clang-format off
+    Indent(out) << "{ "
+                <<    ".binding = " << binding.binding.binding
+                <<  ", .descriptorType = vk::DescriptorType(" << (uint64_t)binding.binding.descriptorType 
+                << "), .descriptorCount = " << binding.binding.descriptorCount
+                <<  ", .stageFlags = vk::ShaderStageFlags(" << static_cast<vk::ShaderStageFlags::MaskType>(binding.binding.stageFlags)
+                << ") };\n";
+    // clang-format on
+  }
+  // Conversion operator for some reason
+  Indent(out)
+      << "operator vk::ArrayProxy<vk::DescriptorSetLayoutBinding>() const \n";
+  IncreaseIndent();
+  Indent(out) << "{ return {" << set.bindings.size()
+              << ", (vk::DescriptorSetLayoutBinding *)this}; }\n";
+  DecreaseIndent();
+
+  // DescriptorSetLayoutCreateInfo getter
+  Indent(out) << "vk::DescriptorSetLayoutCreateInfo "
+                 "CreateInfo(vk::DescriptorSetLayoutCreateFlags flags = {}) "
+                 "{\n";
+  IncreaseIndent();
+  Indent(out) << "return {.flags = flags, .bindingCount = "
+              << set.bindings.size()
+              << ", .pBindings = "
+                 "(vk::DescriptorSetLayoutBinding *)this};\n";
+  DecreaseIndent();
+  Indent(out) << "}\n";
+
+  DecreaseIndent();
+  Indent(out) << "};\n";
+  Indent(out) << "static_assert(offsetof(" << struct_name << ", "
+              << set.bindings[0].name << ") == 0);\n\n";
 }
 } // namespace shbind

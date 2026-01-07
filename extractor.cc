@@ -98,6 +98,9 @@ void BindingsExtractor::WriteToStream(std::ostream &out, IWriter &writer) {
   std::transform(vertex_attrs_.begin(), vertex_attrs_.end(), attrs.begin(),
                  [](auto attr) { return attr.second; });
   writer.WriteVertexAttributeInterface(attrs, out);
+  for (const auto &[idx, set] : descriptor_sets_) {
+    writer.WriteDescriptorSetStruct(set, out, idx);
+  }
   // End file
   writer.EndWriting(out);
 }

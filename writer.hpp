@@ -5,7 +5,6 @@
 #include <string>
 #include <utility>
 
-#include "api/vertex-attribs.hpp"
 #include "metadata.hpp"
 
 namespace shbind {
@@ -23,13 +22,15 @@ public:
   }
   virtual void WriteVertexAttributeInterface(
       const std::vector<VertexAttributeMetadata> &attrs, std::ostream &out) = 0;
+  virtual void WriteDescriptorSetStruct(const DescriptorSetMetadata &set,
+                                        std::ostream &out, uint32_t idx) = 0;
   virtual ~IWriter() {}
 
   virtual void WritePrelude(std::ostream &out) = 0;
   virtual void EndWriting(std::ostream &out) = 0;
 
-  inline void IncreaseIndent() { ++indent_level_; }
-  inline void DecreaseIndent() { --indent_level_; }
+  inline void IncreaseIndent(int levels = 1) { indent_level_ += levels; }
+  inline void DecreaseIndent(int levels = 1) { indent_level_ -= levels; }
   inline std::ostream& Indent(std::ostream &out) {
     for (int i = 0; i < indent_level_; ++i)
       out << indent_;

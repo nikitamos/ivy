@@ -2,8 +2,14 @@
 #include "metadata.hpp"
 #include "writer.hpp"
 #include <ostream>
+#include <tuple>
+#include <type_traits>
 
 namespace shbind {
+template <typename T>
+concept Enum = requires(T t) {
+  { std::is_enum_v<T>() };
+};
 class CxxWriter : public IWriter {
 public:
   CxxWriter(std::string &&indentation = "  ") : IWriter(std::move(indentation)) {}
@@ -26,5 +32,11 @@ public:
   void VarDeclareArray(HostArray *host_type, std::string name, std::ostream &out) override;
   void VarDeclareStruct(HostStruct *host_type, std::string name, std::ostream &out) override;
   void VarDeclareHostType(HostType *host_type, std::string name, std::ostream &out) override;
+  void WriteDescriptorSetStruct(const DescriptorSetMetadata &bindings,
+                                std::ostream &out, uint32_t idx) override;
+  /// NOTE: Don't use this methods on structs that have sType and pNext
+  template <typename... T>
+  void DeclareInitializerList(std::tuple<const T &...> params,
+                              std::ostream &out);
 };
 } // namespace shbind
