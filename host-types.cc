@@ -1,13 +1,17 @@
 #include "host-types.hpp"
 #include "spirv_common.hpp"
+#include "spirv_cross_containers.hpp"
 #include "writer.hpp"
 #include <algorithm>
+#include <cassert>
+#include <functional>
 #include <glm/detail/qualifier.hpp>
 #include <glm/glm.hpp>
 #include <iostream>
 #include <memory>
 #include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace shbind {
@@ -25,22 +29,28 @@ static const std::string kDouble = "double";
 
 std::shared_ptr<HostType>
 HostTypeFactory::CreatePrimitiveType(spc::SPIRType::BaseType base, int rows,
-                                     int cols) {
+                                     int cols,
+                                     spirv_cross::SmallVector<uint32_t> array) {
   auto name = GetPrimitiveTypeName(base);
+  std::shared_ptr<HostType> res;
   if (!name.has_value()) {
     return nullptr;
-  }
-  if (cols == 1) {
-    if (rows == 1) {
-      return std::make_shared<HostType>(name.value());
-    }
-    return std::make_shared<HostType>("glm::vec<" + std::to_string(rows) +
-                                      ", " + name.value() + ">");
+  } else if (cols == 1) {
+    if (rows == 1)
+      res = std::make_shared<HostType>(name.value());
+    else
+      res = std::make_shared<HostType>("glm::vec<" + std::to_string(rows) +
+                                       ", " + name.value() + ">");
   } else {
-    return std::make_shared<HostType>("glm::mat<" + std::to_string(cols) +
-                                      ", " + std::to_string(rows) + ", " +
-                                      name.value() + ">");
+    res = std::make_shared<HostType>("glm::mat<" + std::to_string(cols) + ", " +
+                                     std::to_string(rows) + ", " +
+                                     name.value() + ">");
   }
+  if (array.size() > 1 || (array.size() > 0 && array[0] > 1)) {
+    // Are arrays declared left-to-right or right-to-left?
+    std::make_shared<HostArray>(res, std::move(array));
+  }
+  return res;
 }
 
 const std::optional<std::string>
@@ -101,6 +111,8 @@ HostTypeFactory::CreateStruct(const spirv_cross::SPIRType &type,
                 << "has empty name\n";
       mem_name = "member" + std::to_string(i);
     }
+    std::cout << "member " << i << " type: " << type.member_types[i]
+              << std::endl;
     members.emplace_back(
         GetType(compiler.get_type(type.member_types[i]), compiler), mem_name,
         mem_size, mem_oft);
@@ -118,10 +130,17 @@ std::shared_ptr<HostType>
 HostTypeFactory::GetType(const spc::SPIRType &type,
                          const spc::Compiler &compiler) {
   if (type_map_.contains(type.self)) {
+    std::cout << "Type" << type.self << " (" << type_map_[type.self]->name
+              << " ) retrieved from cache\n";
     return type_map_[type.self];
   }
-  auto host_type =
-      CreatePrimitiveType(type.basetype, type.vecsize, type.columns);
+  // TODO: check the consistency of `type` and `basetype` fields used
+  if (!std::all_of(type.array.begin(), type.array.end(), std::identity{})) {
+    std::cerr
+        << "Warning: type retrieval of a runtime-sized array is unsupported\n";
+  };
+  auto host_type = CreatePrimitiveType(type.basetype, type.vecsize,
+                                       type.columns, type.array);
   if (host_type == nullptr && type.basetype == spc::SPIRType::Struct) {
     host_type = CreateStruct(type, compiler);
   }

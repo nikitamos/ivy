@@ -1,11 +1,13 @@
 #pragma once
 #include "spirv_common.hpp"
 #include "spirv_cross.hpp"
+#include "spirv_cross_containers.hpp"
 #include <cstdint>
 #include <iostream>
 #include <map>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <vector>
 
@@ -33,7 +35,7 @@ public:
 protected:
   virtual std::shared_ptr<HostType>
   CreatePrimitiveType(spirv_cross::SPIRType::BaseType base, int vec_dim,
-                      int cols);
+                      int cols, spirv_cross::SmallVector<uint32_t> array = {});
   virtual std::shared_ptr<HostType>
   CreateStruct(const spirv_cross::SPIRType &type,
                const spirv_cross::Compiler &compiler);
@@ -59,8 +61,17 @@ struct StructMem {
 };
 
 struct HostArray : public HostType {
-  HostArray(std::string name, uint32_t len) : HostType{name}, array_len(len) {}
-  uint32_t array_len;
+  [[deprecated]]
+  HostArray(std::string name, uint32_t len)
+      : HostType{name}, dimensions{len} {}
+  [[deprecated]]
+  HostArray(std::shared_ptr<HostType> subtype, uint32_t len)
+      : HostArray(subtype, spirv_cross::SmallVector<uint32_t>{len}) {}
+
+  HostArray(std::shared_ptr<HostType> element,
+            spirv_cross::SmallVector<uint32_t> &&dim)
+      : HostType(element->name), dimensions(std::move(dim)) {}
+  spirv_cross::SmallVector<uint32_t> dimensions;
 
 protected:
   virtual void AcceptFwdDeclare(IWriter &writer, std::ostream &out) override;

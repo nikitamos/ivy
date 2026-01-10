@@ -48,7 +48,7 @@ void CxxWriter::DeclareHostStruct(HostStruct *type, std::ostream &out) {
   for (size_t i = 0; i < type->members.size(); ++i) {
     const auto &mem = type->members[i];
     if (cur_size != mem.offset) {
-      pad_array.array_len = mem.offset - cur_size;
+      pad_array.dimensions[0] = mem.offset - cur_size;
       VarDeclareArray(&pad_array, kPadPrefix + std::to_string(i), out);
     }
     Indent(out) << "// oft=" << mem.offset << " size=" << mem.size << "\n";
@@ -79,8 +79,12 @@ void CxxWriter::WritePrelude(std::ostream &out) {
 
 void CxxWriter::VarDeclareArray(HostArray *host_type, std::string name,
                                 std::ostream &out) {
-  Indent(out) << host_type->name << ' ' << name << '[' << host_type->array_len
-              << ']' << ";\n";
+  Indent(out) << host_type->name << ' ' << name;
+  for (auto i = host_type->dimensions.begin(); i != host_type->dimensions.end();
+       ++i) {
+    out << '[' << *i << ']';
+  }
+  out << ";\n";
 }
 void CxxWriter::VarDeclareStruct(HostStruct *host_type, std::string name,
                                  std::ostream &out) {

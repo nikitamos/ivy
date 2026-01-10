@@ -336,11 +336,14 @@ void BindingsExtractor::ExtractDescriptorBindingsOfType(
     // TODO: discard excess struct layer?
     // For images it is inapplicable
     auto type = ExtractType(res.base_type_id);
+    auto spv_type = compiler_.get_type(res.base_type_id);
+    auto desc_count = std::reduce(spv_type.array.begin(), spv_type.array.end(),
+                                  1u, [](auto x, auto y) { return x * y; });
     bindings.emplace_back(
         vk::DescriptorSetLayoutBinding{
-            binding, desc_type, 0 /* TODO: count */,
+            binding, desc_type, desc_count /* TODO: count */,
             vk::ShaderStageFlagBits::eAll /* TODO?: select stages */, nullptr},
-        name, type);
+        name + "__" + type->name, type);
   }
 }
 } // namespace shbind
