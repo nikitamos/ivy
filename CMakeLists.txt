@@ -11,4 +11,7 @@ target_include_directories(shader-binder PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} ${CM
 set_target_properties(shader-binder PROPERTIES 
                       CXX_STANDARD 20
                       PUBLIC_HEADER ${CMAKE_CURRENT_SOURCE_DIR}/api/vertex-attribs.hpp)
+
+target_precompile_headers(shader-binder PRIVATE argparse.hpp)
+
 target_link_libraries(shader-binder spirv-cross-cpp)
