@@ -12,6 +12,8 @@
 #include "extractor.hpp"
 #include "host-types.hpp"
 
+#include "pipeline-spec.hpp"
+
 namespace shbind {
 std::vector<char> ReadShader(const std::string_view path) {
   int a = 3;

@@ -6,7 +6,9 @@ set(SPIRV_CROSS_ENABLE_REFLECT OFF)
 
 add_subdirectory(SPIRV-Cross)
 
-add_executable(shader-binder main.cc extractor.cc host-types.cc cxx-writer.cc api/vertex-attribs.hpp api/descriptor-sets.hpp)
+find_package(Boost REQUIRED)
+
+add_executable(shader-binder main.cc extractor.cc host-types.cc cxx-writer.cc pipeline-provider.cc api/vertex-attribs.hpp api/descriptor-sets.hpp)
 target_include_directories(shader-binder PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/api)
 set_target_properties(shader-binder PROPERTIES 
                       CXX_STANDARD 20
@@ -14,4 +16,4 @@ set_target_properties(shader-binder PROPERTIES
 
 target_precompile_headers(shader-binder PRIVATE argparse.hpp)
 
-target_link_libraries(shader-binder spirv-cross-cpp)
+target_link_libraries(shader-binder spirv-cross-cpp Boost::headers)

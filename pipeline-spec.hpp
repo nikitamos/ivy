@@ -1,91 +1,56 @@
 #pragma once
-
-#include <optional>
-#include <stdexcept>
-#include <string>
-#include <string_view>
-#include <type_traits>
-#include <vulkan/vulkan.hpp>
-
 #include "spirv.hpp"
-#include "spirv_cross.hpp"
-#include "spirv_cross_error_handling.hpp"
 
 namespace shbind {
-class EntryPointNotFoundException : public std::runtime_error {
-public:
-  EntryPointNotFoundException(const std::string &name,
-                              spv::ExecutionModel model)
-      : std::runtime_error("can not find entry point `" + name + "`"),
-        name(name), model(model) {}
-  const std::string name;
-  const spv::ExecutionModel model;
-};
-
-class PipelineProvider {
-  virtual std::pair<const std::string &, spv::ExecutionModel> NextEntryPoint();
-  const spirv_cross::SPIREntryPoint &
-  FindNextEntryPoint(const spirv_cross::Compiler &compiler,
-                     const std::string &name, spv::ExecutionModel model) {
-    if (name.empty()) {
-      // Try to find an entry point with the required model.
-      // If the number of entry points found is != 1, then throw
-    }
-    try {
-      const auto &ep = compiler.get_entry_point(name, model);
-      return ep;
-    } catch (spirv_cross::CompilerError &ce) {
-      throw EntryPointNotFoundException(name, model);
-    }
-  }
-
-protected:
-  struct StageInfo {
-    const std::string &name;
-    spv::ExecutionModel model;
-    bool last;
-  };
-  virtual StageInfo GetNextStage() = 0;
-};
-
-struct VertexPipelineSpec {
+struct GraphicsPipelineSpec {
   std::string vertex;
   std::optional<std::string> tesselation_control;
   std::optional<std::string> tesselation_evaluation;
   std::optional<std::string> geometry;
   std::string fragment;
+  static constexpr const std::array<spv::ExecutionModel, 5> kModels = {
+      spv::ExecutionModelVertex, spv::ExecutionModelTessellationControl,
+      spv::ExecutionModelTessellationEvaluation, spv::ExecutionModelGeometry,
+      spv::ExecutionModelFragment};
 };
-
-class VertexPipelineProvider {
-public:
-  VertexPipelineProvider(VertexPipelineSpec &&spec) : spec_(std::move(spec)) {}
-
-private:
-  VertexPipelineSpec spec_;
-};
-
 struct MeshPipelineSpecNV {
   std::optional<std::string> task;
   std::string mesh;
   std::string fragment;
+  static constexpr const std::array<spv::ExecutionModel, 3> kModels = {
+      spv::ExecutionModelTaskNV, spv::ExecutionModelMeshNV,
+      spv::ExecutionModelFragment};
 };
 struct MeshPipelineSpecEXT {
   std::string task;
   std::string mesh;
+  std::string fragment;
+  static constexpr const std::array<spv::ExecutionModel, 3> kModels = {
+      spv::ExecutionModelTaskEXT, spv::ExecutionModelMeshEXT,
+      spv::ExecutionModelFragment};
 };
 
-template <typename U, typename... T>
-std::tuple<std::add_lvalue_reference<T>...> Unpack3(U& u) {
-    return u;
-}
-
-void A(MeshPipelineSpecEXT ext) {
-//   std::tuple aaa = ext;
-}
-
-class ComputePipelineSpec {
+struct ComputePipelineSpec {
   std::string kernel;
+  static constexpr const std::array<spv::ExecutionModel, 1> kModels = {
+      spv::ExecutionModelGLCompute};
 };
 
-class RaytracingPipelineSpec {};
+// TODO: ray tracing may require to be split into 2 groups
+struct RaytracingPipelineSpec {
+  std::string raygen;
+  std::vector<std::string> miss;
+  std::vector<std::string> hit;
+  std::vector<std::string> callable;
+
+  std::optional<std::string> intersection;
+  std::optional<std::string> any_hit;
+  std::optional<std::string> closest_hit;
+
+  static constexpr const std::array<spv::ExecutionModel, 7> kModels = {
+      spv::ExecutionModelRayGenerationKHR, spv::ExecutionModelMissKHR,
+      spv::ExecutionModelCallableKHR,      spv::ExecutionModelIntersectionKHR,
+      spv::ExecutionModelAnyHitKHR,        spv::ExecutionModelClosestHitKHR,
+  };
+};
 } // namespace shbind
