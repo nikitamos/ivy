@@ -31,14 +31,10 @@ class PipelineProvider {
 public:
   PipelineProvider(size_t max_stages) : max_stage_count_(max_stages) {}
 
-  void TryGetNextEntryPoint(const spirv_cross::Compiler &compiler) {
-    auto stage = GetNextStage();
-    if (stage != std::nullopt) {
-      FindEntryPoint(compiler, stage.value());
-    }
-  }
+  const spirv_cross::SPIREntryPoint *
+  TryGetNextEntryPoint(const spirv_cross::Compiler &compiler);
   size_t MaxStages() const { return max_stage_count_; }
-  bool MayHaveStages() const { return cur_stage < max_stage_count_; }
+  bool MayHaveUnhandledStages() const { return cur_stage < max_stage_count_; }
 
 protected:
   struct StageInfo {
@@ -59,10 +55,11 @@ private:
 // using VModels = ComputePipelineSpec::kModels;
 template <typename TSpec, size_t VModelCount,
           std::array<spv::ExecutionModel, VModelCount> VModels>
-class PipelineProviderFromSpec : PipelineProvider {
+class PipelineProviderFromSpec : public PipelineProvider {
 public:
   static_assert(boost::pfr::tuple_size_v<TSpec> == VModelCount);
   PipelineProviderFromSpec() : PipelineProvider(VModelCount) {}
+  static inline constexpr const size_t kModelCount = VModelCount;
 
 protected:
   std::optional<StageInfo> GetNextStage() override {
@@ -79,11 +76,15 @@ private:
   static bool HasValue(const std::optional<std::string> &opt) {
     return opt.has_value();
   }
+  static const std::string &GetValue(const std::string &s) { return s; }
+  static const std::string &GetValue(const std::optional<std::string> &opt) {
+    return opt.value();
+  }
   template <size_t N>
   static std::optional<StageInfo> GetStageName(const TSpec &spec) {
     const auto &name = boost::pfr::get<N>(spec);
     if (HasValue(name)) {
-      return StageInfo{name, VModels[N]};
+      return StageInfo{GetValue(name), VModels[N]};
     }
     return std::nullopt;
   }
@@ -100,8 +101,9 @@ private:
     SpecGetterProvider() : res{GetStageName<0>} {}
     std::array<GetSpecImplFn, 1> res;
   };
-  static constinit const SpecGetterProvider<VModelCount> kGetterProviders;
 
+  // TODO: make static?
+  const SpecGetterProvider<VModelCount> kGetterProviders;
   TSpec spec_;
 };
 

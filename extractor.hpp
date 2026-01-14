@@ -2,6 +2,7 @@
 #include "host-types.hpp"
 #include "metadata.hpp"
 #include "options.hpp"
+#include "pipeline-provider.hpp"
 #include "spirv.hpp"
 #include "spirv_common.hpp"
 #include "spirv_cross.hpp"
@@ -18,16 +19,13 @@
 #include "api/vertex-attribs.hpp"
 
 namespace shbind {
-struct [[deprecated]] CxxModule {};
-
 class BindingsExtractor {
 public:
-  BindingsExtractor(const spirv_cross::Compiler &compiler,
-                    HostTypeFactory &factory,
+  BindingsExtractor(spirv_cross::Compiler &compiler, HostTypeFactory &factory,
                     GenerationOptions &&opts = GenerationOptions())
-      : compiler_(std::move(compiler)), opts_(std::move(opts)),
-        type_factory_(factory) {}
-  CxxModule ExtractBindings();
+      : compiler_(compiler), opts_(std::move(opts)), type_factory_(factory) {}
+  void ExtractBindingsFromResources(const spirv_cross::ShaderResources &res);
+  void ExtractBindings(PipelineProvider &provider);
   void WriteToStream(std::ostream &out, IWriter &writer);
 
   BindingsExtractor(const BindingsExtractor &) = delete;
@@ -45,13 +43,14 @@ public:
   std::string CanonicalizeName(const std::string &name) const;
 
 private:
-  void ExtractPushConstants();
-  void ExtractDescriptorSets();
-  void ExtractSpecializationConstants();
+  void ExtractPushConstants(const spirv_cross::ShaderResources &res);
+  void ExtractDescriptorSets(const spirv_cross::ShaderResources &res);
+  void ExtractSpecializationConstants(const spirv_cross::ShaderResources &res);
   void ExtractDescriptorBindingsOfType(
       const spirv_cross::SmallVector<spirv_cross::Resource> &resources,
       vk::DescriptorType type);
-  void ExtractVertexAttributes(const std::string &entry_point = "");
+  void ExtractVertexAttributes(const std::string &entry_point_name = "");
+  void ExtractVertexAttributes(const spirv_cross::SPIREntryPoint &entry_point);
   std::shared_ptr<HostType> ExtractType(spirv_cross::TypeID id);
   void ExtractAllTypes();
 
@@ -62,7 +61,7 @@ private:
   std::optional<spirv_cross::EntryPoint>
   GetEntryPointOrFirst(const std::string &name, spv::ExecutionModel model);
 
-  const spirv_cross::Compiler &compiler_;
+  spirv_cross::Compiler &compiler_;
   GenerationOptions opts_;
   HostTypeFactory &type_factory_;
   std::map<uint32_t, VertexAttributeMetadata> vertex_attrs_;

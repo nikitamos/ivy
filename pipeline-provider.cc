@@ -14,7 +14,7 @@ PipelineProvider::FindEntryPoint(const spirv_cross::Compiler &compiler,
     if (iter == points.end()) {
       throw EntryPointNotFoundException("<unknown>", stage.model);
     }
-    if (std::find_if(iter, points.end(), model_pred) != points.end()) {
+    if (std::find_if(iter + 1, points.end(), model_pred) != points.end()) {
       throw std::runtime_error("Multiple entry points of execution model " +
                                std::to_string(stage.model) +
                                " detected. Specify the entry point name");
@@ -27,5 +27,15 @@ PipelineProvider::FindEntryPoint(const spirv_cross::Compiler &compiler,
   } catch (spirv_cross::CompilerError &ce) {
     throw EntryPointNotFoundException(stage.name, stage.model);
   }
+}
+const spirv_cross::SPIREntryPoint *
+PipelineProvider::TryGetNextEntryPoint(const spirv_cross::Compiler &compiler) {
+  auto stage = GetNextStage();
+  if (stage.has_value()) {
+    return &FindEntryPoint(compiler, stage.value());
+  } else if (!MayHaveUnhandledStages()) {
+    return nullptr;
+  }
+  return TryGetNextEntryPoint(compiler);
 }
 } // namespace shbind

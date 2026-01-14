@@ -5,6 +5,7 @@
 #include "metadata.hpp"
 #include "spirv.hpp"
 #include "spirv_common.hpp"
+#include "spirv_cross.hpp"
 #include "vulkan/vulkan.hpp"
 #include "writer.hpp"
 
@@ -13,11 +14,13 @@
 #include <concepts>
 #include <cstdint>
 #include <iostream>
+#include <iterator>
 #include <memory>
 #include <numeric>
 #include <ostream>
 #include <stdexcept>
 #include <string>
+#include <unordered_set>
 #include <vector>
 #include <vulkan/vulkan_to_string.hpp>
 
@@ -37,9 +40,9 @@ static inline void Throw64BitLocationUnshareble(uint32_t location) {
 
 namespace shbind {
 namespace spc = spirv_cross;
-void BindingsExtractor::ExtractPushConstants() {
-  auto resources = compiler_.get_shader_resources();
-  auto constants = resources.push_constant_buffers;
+void BindingsExtractor::ExtractPushConstants(
+    const spirv_cross::ShaderResources &res) {
+  auto constants = res.push_constant_buffers;
 
   // "There must be no more than one push constant block statically used per
   // shader entry point"
@@ -51,6 +54,7 @@ void BindingsExtractor::ExtractPushConstants() {
   }
 
   if (constants.size() == 0) {
+    std::cout << "no push constants" << std::endl;
     return;
   }
   auto &push_const = constants[0];
@@ -69,7 +73,8 @@ void BindingsExtractor::ExtractPushConstants() {
   std::cout << '\n';
   // What about push constant ranges?
 }
-void BindingsExtractor::ExtractSpecializationConstants() {}
+void BindingsExtractor::ExtractSpecializationConstants(
+    const spirv_cross::ShaderResources &res) {}
 std::shared_ptr<HostType> BindingsExtractor::ExtractType(spc::TypeID id) {
   const auto &type = compiler_.get_type(id);
   auto res = type_factory_.GetType(type, compiler_);
@@ -77,11 +82,10 @@ std::shared_ptr<HostType> BindingsExtractor::ExtractType(spc::TypeID id) {
 }
 void BindingsExtractor::ExtractAllTypes() {}
 
-shbind::CxxModule BindingsExtractor::ExtractBindings() {
-  ExtractPushConstants();
-  ExtractVertexAttributes();
-  ExtractDescriptorSets();
-  return CxxModule();
+void BindingsExtractor::ExtractBindingsFromResources(
+    const spc::ShaderResources &res) {
+  ExtractPushConstants(res);
+  ExtractDescriptorSets(res);
 }
 void BindingsExtractor::WriteToStream(std::ostream &out, IWriter &writer) {
   // Write prelude
@@ -115,6 +119,11 @@ void BindingsExtractor::ExtractVertexAttributes(
   }
   const auto &entry_point =
       compiler_.get_entry_point(point_desc->name, spv::ExecutionModelVertex);
+  ExtractVertexAttributes(entry_point);
+}
+
+void BindingsExtractor::ExtractVertexAttributes(
+    const spirv_cross::SPIREntryPoint &entry_point) {
   for (const auto &var : entry_point.interface_variables) {
     if (compiler_.get_storage_class(var) == spv::StorageClassInput &&
         compiler_.get_decoration(var, spv::DecorationBuiltIn) == 0) {
@@ -223,6 +232,7 @@ void BindingsExtractor::ExtractVertexAttributes(
     }
   }
 }
+
 std::optional<spirv_cross::EntryPoint>
 BindingsExtractor::GetEntryPointOrFirst(const std::string &name,
                                         spv::ExecutionModel model) {
@@ -274,8 +284,8 @@ BindingsExtractor::GetLocationFormatComponentCount(vk::Format fmt) const {
 else return 0;
   // clang-format on
 }
-void BindingsExtractor::ExtractDescriptorSets() {
-  auto resources = compiler_.get_shader_resources();
+void BindingsExtractor::ExtractDescriptorSets(
+    const spc::ShaderResources &resources) {
   // FIXME: The following resources are not extracted for now:
   // sample weight image;
   // block matching image; input attachment;
@@ -344,6 +354,42 @@ void BindingsExtractor::ExtractDescriptorBindingsOfType(
             binding, desc_type, desc_count /* TODO: count */,
             vk::ShaderStageFlagBits::eAll /* TODO?: select stages */, nullptr},
         name + "__" + type->name, type);
+  }
+}
+void BindingsExtractor::ExtractBindings(PipelineProvider &provider) {
+  const spirv_cross::SPIREntryPoint *stage;
+  // std::unordered_set<spc::VariableID> used_vars;
+  while ((stage = provider.TryGetNextEntryPoint(compiler_)) != nullptr) {
+    std::cout << "Stage " << stage->name << " (" << stage->model << ")\n";
+    std::unordered_set<spc::VariableID> vars(stage->interface_variables.begin(),
+                                             stage->interface_variables.end());
+    compiler_.set_entry_point(stage->name, stage->model);
+    // get_shader_resources gets resources only from active entry point
+    ExtractBindingsFromResources(compiler_.get_shader_resources());
+    // used_vars.merge(vars);
+    switch (stage->model) {
+    case spv::ExecutionModelVertex:
+      ExtractVertexAttributes(*stage);
+      break;
+    case spv::ExecutionModelTessellationControl:
+    case spv::ExecutionModelTessellationEvaluation:
+    case spv::ExecutionModelGeometry:
+    case spv::ExecutionModelFragment:
+    case spv::ExecutionModelGLCompute:
+    case spv::ExecutionModelKernel:
+    case spv::ExecutionModelTaskNV:
+    case spv::ExecutionModelMeshNV:
+    case spv::ExecutionModelRayGenerationKHR:
+    case spv::ExecutionModelIntersectionKHR:
+    case spv::ExecutionModelAnyHitKHR:
+    case spv::ExecutionModelClosestHitKHR:
+    case spv::ExecutionModelMissKHR:
+    case spv::ExecutionModelCallableKHR:
+    case spv::ExecutionModelTaskEXT:
+    case spv::ExecutionModelMeshEXT:
+    case spv::ExecutionModelMax:
+      break;
+    }
   }
 }
 } // namespace shbind

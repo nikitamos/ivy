@@ -56,8 +56,9 @@ int main(int argc, char **argv) {
   }
   shbind::HostTypeFactory factory;
   shbind::CxxWriter writer;
-  shbind::BindingsExtractor extractor(std::move(core), factory);
+  shbind::BindingsExtractor extractor(core, factory);
 
-  extractor.ExtractBindings();
+  shbind::GraphicsPipelineProvider pr({});
+  extractor.ExtractBindings(pr);
   extractor.WriteToStream(*out_stream, writer);
 }
