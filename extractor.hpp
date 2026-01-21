@@ -64,6 +64,7 @@ private:
   spirv_cross::Compiler &compiler_;
   GenerationOptions opts_;
   HostTypeFactory &type_factory_;
+  const spirv_cross::SPIREntryPoint *cur_stage_;
   std::map<uint32_t, VertexAttributeMetadata> vertex_attrs_;
   std::unordered_set<uint32_t> tail64_attrs_;
   std::map<uint32_t, DescriptorSetMetadata> descriptor_sets_;

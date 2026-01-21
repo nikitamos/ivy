@@ -12,6 +12,7 @@
 #include "extractor.hpp"
 #include "host-types.hpp"
 
+#include "options.hpp"
 #include "pipeline-spec.hpp"
 
 namespace shbind {
@@ -31,11 +32,15 @@ std::vector<char> ReadShader(const std::string_view path) {
 
 int main(int argc, char **argv) {
   std::string input_path, output_path;
+  shbind::GenerationOptions opts;
   argparse::ArgumentParser argparser{"shader-binder", "0.1"};
   argparser.add_argument("input")
       .help("input SPIR-V file")
       .store_into(input_path);
   argparser.add_argument("-o").help("output file").store_into(output_path);
+  argparser.add_argument("--module,-m")
+      .help("module (namespace) where to place the bindings")
+      .store_into(opts.module_name);
   argparser.parse_args(argc, argv);
 
   std::ostream *out_stream = &std::cout;

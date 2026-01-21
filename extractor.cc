@@ -38,6 +38,8 @@ static inline void Throw64BitLocationUnshareble(uint32_t location) {
       "Sufferest thyself.");
 }
 
+// static vk::ShaderStage
+
 namespace shbind {
 namespace spc = spirv_cross;
 void BindingsExtractor::ExtractPushConstants(
@@ -64,11 +66,13 @@ void BindingsExtractor::ExtractPushConstants(
             << std::endl;
   ExtractType(push_const.base_type_id);
   auto ranges = compiler_.get_active_buffer_ranges(push_const.id);
-  const auto stages = compiler_.get_entry_points_and_stages();
   for (auto rng : ranges) {
     std::cout << "RANGES: ";
     std::cout << rng.index << "(" << rng.offset << ".."
               << rng.offset + rng.range << ") ";
+    vk::PushConstantRange range{vk::ShaderStageFlagBits::eAll,
+                                static_cast<uint32_t>(rng.offset),
+                                static_cast<uint32_t>(rng.range)};
   }
   std::cout << '\n';
   // What about push constant ranges?
@@ -98,10 +102,14 @@ void BindingsExtractor::WriteToStream(std::ostream &out, IWriter &writer) {
   for (auto t : types)
     writer.DeclareType(t, out);
   // Write classes for bindings
-  std::vector<VertexAttributeMetadata> attrs(vertex_attrs_.size());
-  std::transform(vertex_attrs_.begin(), vertex_attrs_.end(), attrs.begin(),
-                 [](auto attr) { return attr.second; });
-  writer.WriteVertexAttributeInterface(attrs, out);
+
+  if (!vertex_attrs_.empty()) {
+    std::vector<VertexAttributeMetadata> attrs(vertex_attrs_.size());
+    std::transform(vertex_attrs_.begin(), vertex_attrs_.end(), attrs.begin(),
+                   [](auto attr) { return attr.second; });
+    writer.WriteVertexAttributeInterface(attrs, out);
+  }
+
   for (const auto &[idx, set] : descriptor_sets_) {
     writer.WriteDescriptorSetStruct(set, out, idx);
   }
@@ -154,8 +162,8 @@ void BindingsExtractor::ExtractVertexAttributes(
       }
 
       // Some stupid formats, like vectors of 64bit types and matrices, occupy
-      // several consecutive locations. But still, at least matrices, need to be
-      // passed as distinct VkVertexInputAttributeDescription's (i.e. one
+      // several consecutive locations. But still, at least matrices, need to
+      // be passed as distinct VkVertexInputAttributeDescription's (i.e. one
       // attribute per location). See the following link for details.
       // https://docs.vulkan.org/spec/latest/chapters/fxvertex.html#fxvertex-attrib-location
 
@@ -163,8 +171,8 @@ void BindingsExtractor::ExtractVertexAttributes(
       uint32_t width = type.width == 64 ? 2 : 1;
       uint32_t col_per_item =
           ceildiv(width * type.vecsize, 4u /* len of location */);
-      // The number of components occupied in the `location` attribute. The tail
-      // of 64bit vectors is ignored.
+      // The number of components occupied in the `location` attribute. The
+      // tail of 64bit vectors is ignored.
       uint32_t occupied_comps = std::max(4u, width * type.vecsize);
 
       // Matrices are passed as arrays, right?
@@ -205,8 +213,8 @@ void BindingsExtractor::ExtractVertexAttributes(
               std::min(cur_attr.attribute.component, initial_component);
           uint32_t used_components =
               cur_attr.max_component - cur_attr.attribute.component + 1;
-          // Note: according to the spec, only variables of same base types are
-          // allowed to share the location.
+          // Note: according to the spec, only variables of same base types
+          // are allowed to share the location.
           //
           // I'm not sure that extending format is the correct way to pass
           // multiple variable into the same component. I haven't found the
@@ -216,10 +224,10 @@ void BindingsExtractor::ExtractVertexAttributes(
 
           // Note: if 64-bit vector occupies two locations, the max component
           // of the second location will be either occupied by its tail
-          // (in this case there is no other variables in the 2nd location, and
-          // we are shouldn't set its max_component) or by another variable
-          // (max_component will be properly when handling that variable).
-          // Thus we don't care about the second location.
+          // (in this case there is no other variables in the 2nd location,
+          // and we are shouldn't set its max_component) or by another
+          // variable (max_component will be properly when handling that
+          // variable). Thus we don't care about the second location.
         } else {
           vertex_attrs_.emplace(
               location + col,
@@ -357,19 +365,20 @@ void BindingsExtractor::ExtractDescriptorBindingsOfType(
   }
 }
 void BindingsExtractor::ExtractBindings(PipelineProvider &provider) {
-  const spirv_cross::SPIREntryPoint *stage;
   // std::unordered_set<spc::VariableID> used_vars;
-  while ((stage = provider.TryGetNextEntryPoint(compiler_)) != nullptr) {
-    std::cout << "Stage " << stage->name << " (" << stage->model << ")\n";
-    std::unordered_set<spc::VariableID> vars(stage->interface_variables.begin(),
-                                             stage->interface_variables.end());
-    compiler_.set_entry_point(stage->name, stage->model);
+  while ((cur_stage_ = provider.TryGetNextEntryPoint(compiler_)) != nullptr) {
+    std::cout << "Stage " << cur_stage_->name << " (" << cur_stage_->model
+              << ")\n";
+    std::unordered_set<spc::VariableID> vars(
+        cur_stage_->interface_variables.begin(),
+        cur_stage_->interface_variables.end());
+    compiler_.set_entry_point(cur_stage_->name, cur_stage_->model);
     // get_shader_resources gets resources only from active entry point
     ExtractBindingsFromResources(compiler_.get_shader_resources());
     // used_vars.merge(vars);
-    switch (stage->model) {
+    switch (cur_stage_->model) {
     case spv::ExecutionModelVertex:
-      ExtractVertexAttributes(*stage);
+      ExtractVertexAttributes(*cur_stage_);
       break;
     case spv::ExecutionModelTessellationControl:
     case spv::ExecutionModelTessellationEvaluation:
