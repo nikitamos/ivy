@@ -34,6 +34,8 @@ public:
   void VarDeclareHostType(HostType *host_type, std::string name, std::ostream &out) override;
   void WriteDescriptorSetStruct(const DescriptorSetMetadata &bindings,
                                 std::ostream &out, uint32_t idx) override;
+  virtual void WritePushConstantRanges(std::span<vk::PushConstantRange> ranges,
+                                       std::ostream &out) override;
   /// NOTE: Don't use this methods on structs that have sType and pNext
   template <typename... T>
   void DeclareInitializerList(std::tuple<const T &...> params,

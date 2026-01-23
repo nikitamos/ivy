@@ -6,6 +6,7 @@
 #include <utility>
 
 #include "metadata.hpp"
+#include "vulkan/vulkan.hpp"
 
 namespace shbind {
 class IWriter {
@@ -24,6 +25,8 @@ public:
       const std::vector<VertexAttributeMetadata> &attrs, std::ostream &out) = 0;
   virtual void WriteDescriptorSetStruct(const DescriptorSetMetadata &set,
                                         std::ostream &out, uint32_t idx) = 0;
+  virtual void WritePushConstantRanges(std::span<vk::PushConstantRange> ranges,
+                                       std::ostream &out) = 0;
   virtual ~IWriter() {}
 
   virtual void WritePrelude(std::ostream &out) = 0;

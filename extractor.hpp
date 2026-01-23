@@ -68,5 +68,6 @@ private:
   std::map<uint32_t, VertexAttributeMetadata> vertex_attrs_;
   std::unordered_set<uint32_t> tail64_attrs_;
   std::map<uint32_t, DescriptorSetMetadata> descriptor_sets_;
+  std::vector<vk::PushConstantRange> ranges_;
 };
 } // namespace shbind

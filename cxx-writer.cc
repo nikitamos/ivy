@@ -4,6 +4,8 @@
 #include "metadata.hpp"
 #include <string>
 
+#include <push-const.hpp>
+
 namespace shbind {
 template <typename T> struct PrintMember {
   PrintMember(T mem, std::ostream &out) {
@@ -156,5 +158,18 @@ void CxxWriter::WriteDescriptorSetStruct(const DescriptorSetMetadata &set,
   Indent(out) << "};\n";
   Indent(out) << "static_assert(offsetof(" << struct_name << ", "
               << set.bindings[0].name << ") == 0);\n\n";
+}
+void CxxWriter::WritePushConstantRanges(std::span<vk::PushConstantRange> ranges,
+                                        std::ostream &out) {
+  Indent(out)
+      << "static constinit const vk::PushConstantRange kPushRanges[] = {\n";
+  IncreaseIndent();
+  for (auto range : ranges) {
+    Indent(out) << "{vk::ShaderStageFlags(" << (uint32_t)range.stageFlags
+                << "U), " << std::dec << range.offset << ", " << range.size
+                << "},\n";
+  }
+  DecreaseIndent();
+  Indent(out) << "};\n";
 }
 } // namespace shbind

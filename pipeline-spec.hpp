@@ -1,5 +1,7 @@
 #pragma once
 #include "spirv.hpp"
+#include <optional>
+#include <string>
 
 namespace shbind {
 struct GraphicsPipelineSpec {

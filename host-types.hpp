@@ -48,6 +48,7 @@ protected:
   GetPrimitiveTypeName(spirv_cross::SPIRType::BaseType base);
 
   std::map<spirv_cross::ID, std::shared_ptr<HostType>> type_map_;
+  std::vector<spirv_cross::ID> order_;
 };
 
 struct StructMem {

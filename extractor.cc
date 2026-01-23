@@ -70,12 +70,11 @@ void BindingsExtractor::ExtractPushConstants(
     std::cout << "RANGES: ";
     std::cout << rng.index << "(" << rng.offset << ".."
               << rng.offset + rng.range << ") ";
-    vk::PushConstantRange range{vk::ShaderStageFlagBits::eAll,
-                                static_cast<uint32_t>(rng.offset),
-                                static_cast<uint32_t>(rng.range)};
+    ranges_.emplace_back(vk::ShaderStageFlagBits::eAll,
+                         static_cast<uint32_t>(rng.offset),
+                         static_cast<uint32_t>(rng.range));
   }
   std::cout << '\n';
-  // What about push constant ranges?
 }
 void BindingsExtractor::ExtractSpecializationConstants(
     const spirv_cross::ShaderResources &res) {}
@@ -113,6 +112,7 @@ void BindingsExtractor::WriteToStream(std::ostream &out, IWriter &writer) {
   for (const auto &[idx, set] : descriptor_sets_) {
     writer.WriteDescriptorSetStruct(set, out, idx);
   }
+  writer.WritePushConstantRanges(ranges_, out);
   // End file
   writer.EndWriting(out);
 }

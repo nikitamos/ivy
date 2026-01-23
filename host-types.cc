@@ -5,8 +5,6 @@
 #include <algorithm>
 #include <cassert>
 #include <functional>
-#include <glm/detail/qualifier.hpp>
-#include <glm/glm.hpp>
 #include <iostream>
 #include <memory>
 #include <optional>
@@ -134,6 +132,7 @@ HostTypeFactory::GetType(const spc::SPIRType &type,
               << " ) retrieved from cache\n";
     return type_map_[type.self];
   }
+  order_.push_back(type.self);
   // TODO: check the consistency of `type` and `basetype` fields used
   if (!std::all_of(type.array.begin(), type.array.end(), std::identity{})) {
     std::cerr
@@ -172,8 +171,10 @@ HostTypeFactory::GetAllKnownTypes() const {
   std::vector<std::shared_ptr<HostType>> types(type_map_.size());
   // Note: the map is traversed in reverse order to ensure the dependencies
   // are declared before dependent types
-  std::transform(type_map_.crbegin(), type_map_.crend(), types.begin(),
-                 [](const auto &kv) { return kv.second; });
+  // std::transform(type_map_.crbegin(), type_map_.crend(), types.begin(),
+  //                [](const auto &kv) { return kv.second; });
+  std::transform(order_.begin(), order_.end(), types.begin(),
+                 [this](spc::ID id) { return type_map_.at(id); });
   return types;
 }
 void HostType::AcceptDeclare(shbind::IWriter &writer, std::ostream &out) {
