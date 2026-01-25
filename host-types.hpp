@@ -2,20 +2,24 @@
 #include "spirv_common.hpp"
 #include "spirv_cross.hpp"
 #include "spirv_cross_containers.hpp"
+#include "vulkan/vulkan.hpp"
 #include <cstdint>
 #include <iostream>
 #include <map>
 #include <memory>
 #include <optional>
-#include <span>
 #include <string>
 #include <vector>
 
 namespace shbind {
+enum class TypeUsageFlagBits { ePushConst = 0x01 };
+using TypeUsageFlags = vk::Flags<TypeUsageFlagBits>;
+
 class IWriter;
 struct HostType {
   HostType(std::string name) : name(name) {}
   std::string name;
+  TypeUsageFlags usage;
 
 protected:
   friend IWriter;

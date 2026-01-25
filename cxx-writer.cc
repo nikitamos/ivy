@@ -4,8 +4,6 @@
 #include "metadata.hpp"
 #include <string>
 
-#include <push-const.hpp>
-
 namespace shbind {
 template <typename T> struct PrintMember {
   PrintMember(T mem, std::ostream &out) {
@@ -40,12 +38,16 @@ void CxxWriter::FwdDeclareArray(HostArray *host_type, std::ostream &out) {
   // nop
 }
 void CxxWriter::DeclareHostStruct(HostStruct *type, std::ostream &out) {
-  Indent(out) << "struct [[gnu::packed]] " << type->name << " {\n";
+  Indent(out) << "struct [[gnu::packed]] " << type->name;
+  if (type->usage & TypeUsageFlagBits::ePushConst) {
+    out << " : public " << "shbind::api::PushConstant<" << type->name << ">";
+  }
+  out << " {\n";
   uint32_t cur_size = 0;
   static const std::string kPadPrefix = "_pad";
+  HostArray pad_array("uint8_t", 0);
 
   IncreaseIndent();
-  HostArray pad_array("uint8_t", 0);
 
   for (size_t i = 0; i < type->members.size(); ++i) {
     const auto &mem = type->members[i];

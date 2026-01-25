@@ -64,7 +64,7 @@ void BindingsExtractor::ExtractPushConstants(
             << "` (id: " << push_const.id
             << " base-type-id: " << push_const.base_type_id << " )"
             << std::endl;
-  ExtractType(push_const.base_type_id);
+  ExtractType(push_const.base_type_id, TypeUsageFlagBits::ePushConst);
   auto ranges = compiler_.get_active_buffer_ranges(push_const.id);
   for (auto rng : ranges) {
     std::cout << "RANGES: ";
@@ -78,9 +78,11 @@ void BindingsExtractor::ExtractPushConstants(
 }
 void BindingsExtractor::ExtractSpecializationConstants(
     const spirv_cross::ShaderResources &res) {}
-std::shared_ptr<HostType> BindingsExtractor::ExtractType(spc::TypeID id) {
+std::shared_ptr<HostType> BindingsExtractor::ExtractType(spc::TypeID id,
+                                                         TypeUsageFlags usage) {
   const auto &type = compiler_.get_type(id);
   auto res = type_factory_.GetType(type, compiler_);
+  res->usage |= usage;
   return res;
 }
 void BindingsExtractor::ExtractAllTypes() {}

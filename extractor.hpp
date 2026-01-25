@@ -51,7 +51,8 @@ private:
       vk::DescriptorType type);
   void ExtractVertexAttributes(const std::string &entry_point_name = "");
   void ExtractVertexAttributes(const spirv_cross::SPIREntryPoint &entry_point);
-  std::shared_ptr<HostType> ExtractType(spirv_cross::TypeID id);
+  std::shared_ptr<HostType> ExtractType(spirv_cross::TypeID id,
+                                        TypeUsageFlags usage = {});
   void ExtractAllTypes();
 
   // If name is empty, returns the first entry point with given execution model.
