@@ -16,8 +16,6 @@
 #include <unordered_set>
 #include <utility>
 
-#include "api/vertex-attribs.hpp"
-
 namespace shbind {
 class BindingsExtractor {
 public:

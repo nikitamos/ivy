@@ -1,3 +1,4 @@
+#include <cctype>
 #include <cstdint>
 #include <fstream>
 #include <ios>
@@ -13,7 +14,6 @@
 #include "host-types.hpp"
 
 #include "options.hpp"
-#include "pipeline-spec.hpp"
 
 namespace shbind {
 std::vector<char> ReadShader(const std::string_view path) {
@@ -28,6 +28,21 @@ std::vector<char> ReadShader(const std::string_view path) {
   shader_file.read(shader_src.data(), shader_src.size());
   return shader_src;
 }
+bool GenerationOptions::Validate() const {
+  if (!module_name.empty()) {
+    if (!(std::isalpha(module_name[0]) || module_name[0] == '_')) {
+      // throw
+      return false;
+    }
+    for (size_t i = 1; i < module_name.size(); ++i) {
+      if (!std::isalnum(module_name[i])) {
+        // throw
+        return false;
+      }
+    }
+  }
+  return true;
+}
 } // namespace shbind
 
 int main(int argc, char **argv) {
@@ -39,9 +54,14 @@ int main(int argc, char **argv) {
       .store_into(input_path);
   argparser.add_argument("-o").help("output file").store_into(output_path);
   argparser.add_argument("--module,-m")
-      .help("module (namespace) where to place the bindings")
+      .help("module (namespace) where to place the bindings, separated by ::")
       .store_into(opts.module_name);
   argparser.parse_args(argc, argv);
+
+  if (!opts.Validate()) {
+    std::cout << "Error: invalid option passed\n";
+    return 1;
+  }
 
   std::ostream *out_stream = &std::cout;
   std::ofstream out_file;
@@ -60,7 +80,7 @@ int main(int argc, char **argv) {
     throw std::runtime_error("SPIR-V size is invalid");
   }
   shbind::HostTypeFactory factory;
-  shbind::CxxWriter writer;
+  shbind::CxxWriter writer(opts);
   shbind::BindingsExtractor extractor(core, factory);
 
   shbind::GraphicsPipelineProvider pr({});

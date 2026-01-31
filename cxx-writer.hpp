@@ -1,5 +1,6 @@
 #pragma once
 #include "metadata.hpp"
+#include "options.hpp"
 #include "writer.hpp"
 #include <ostream>
 #include <tuple>
@@ -12,7 +13,8 @@ concept Enum = requires(T t) {
 };
 class CxxWriter : public IWriter {
 public:
-  CxxWriter(std::string &&indentation = "  ") : IWriter(std::move(indentation)) {}
+  CxxWriter(const GenerationOptions &opts, std::string &&indentation = "  ")
+      : IWriter(std::move(indentation)), opts_(opts) {}
   virtual ~CxxWriter() {}
   void WritePrelude(std::ostream &out) override;
   void EndWriting(std::ostream &out) override;
@@ -40,5 +42,8 @@ public:
   template <typename... T>
   void DeclareInitializerList(std::tuple<const T &...> params,
                               std::ostream &out);
+
+private:
+  const GenerationOptions &opts_;
 };
 } // namespace shbind

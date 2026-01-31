@@ -367,7 +367,6 @@ void BindingsExtractor::ExtractDescriptorBindingsOfType(
   }
 }
 void BindingsExtractor::ExtractBindings(PipelineProvider &provider) {
-  // std::unordered_set<spc::VariableID> used_vars;
   while ((cur_stage_ = provider.TryGetNextEntryPoint(compiler_)) != nullptr) {
     std::cout << "Stage " << cur_stage_->name << " (" << cur_stage_->model
               << ")\n";
@@ -375,9 +374,8 @@ void BindingsExtractor::ExtractBindings(PipelineProvider &provider) {
         cur_stage_->interface_variables.begin(),
         cur_stage_->interface_variables.end());
     compiler_.set_entry_point(cur_stage_->name, cur_stage_->model);
-    // get_shader_resources gets resources only from active entry point
+    // get_shader_resources gets resources only from the active entry point
     ExtractBindingsFromResources(compiler_.get_shader_resources());
-    // used_vars.merge(vars);
     switch (cur_stage_->model) {
     case spv::ExecutionModelVertex:
       ExtractVertexAttributes(*cur_stage_);

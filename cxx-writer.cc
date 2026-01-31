@@ -1,4 +1,3 @@
-// #define VULKAN_HPP_USE_REFLECT 1
 #include "cxx-writer.hpp"
 #include "host-types.hpp"
 #include "metadata.hpp"
@@ -73,12 +72,20 @@ void CxxWriter::DeclareHostType(HostType *type, std::ostream &out) {
 }
 void CxxWriter::EndWriting(std::ostream &out) {
   // Indent(out) << "#pragma pack(pop)\n";
+  if (!opts_.module_name.empty()) {
+    Indent(out) << "} // " << "namespace " << opts_.module_name << "\n";
+  }
 }
 void CxxWriter::WritePrelude(std::ostream &out) {
   Indent(out) << "// NOTE: This file is auto-generated\n\n";
   Indent(out) << "#include <cstdint>\n";
   Indent(out) << "#include <vertex-attribs.hpp>\n";
   // Indent(out) << "#pragma pack(push, 1)\n";
+
+  if (!opts_.module_name.empty()) {
+    Indent(out) << "namespace " << opts_.module_name << "{ ";
+    IncreaseIndent();
+  }
 }
 
 void CxxWriter::VarDeclareArray(HostArray *host_type, std::string name,
