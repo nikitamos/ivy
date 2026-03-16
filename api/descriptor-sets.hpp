@@ -7,7 +7,7 @@
 #include <vulkan/vulkan.hpp>
 #include <vulkan/vulkan_core.h>
 
-namespace shbind::api {
+namespace ivy::api {
 struct Binding {
   uint32_t id;
   vk::DescriptorType type;
@@ -42,9 +42,9 @@ struct SamplerBindingWrite : Binding {
 struct CombinedSamplerBindingWrite : Binding {
   // TBD
 };
-} // namespace shbind::api
+} // namespace ivy::api
 
-using namespace shbind::api;
+using namespace ivy::api;
 
 // Potentially generated code
 struct DescriptorSetUpdateInfo {

@@ -1,7 +1,7 @@
 #include "pipeline-provider.hpp"
 #include "pipeline-spec.hpp"
 
-namespace shbind {
+namespace ivy {
 const spirv_cross::SPIREntryPoint &
 PipelineProvider::FindEntryPoint(const spirv_cross::Compiler &compiler,
                                  StageInfo stage) {
@@ -38,4 +38,4 @@ PipelineProvider::TryGetNextEntryPoint(const spirv_cross::Compiler &compiler) {
   }
   return TryGetNextEntryPoint(compiler);
 }
-} // namespace shbind
+} // namespace ivy

@@ -5,7 +5,7 @@
 #include <memory>
 #include <string>
 
-namespace shbind {
+namespace ivy {
 struct VertexAttributeMetadata {
   std::string name;
   uint32_t max_component;
@@ -19,4 +19,4 @@ struct DescriptorBindingMetadata {
 struct DescriptorSetMetadata {
   std::vector<DescriptorBindingMetadata> bindings;
 };
-} // namespace shbind
+} // namespace ivy

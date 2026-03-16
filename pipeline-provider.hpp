@@ -16,7 +16,7 @@
 
 #include "pipeline-spec.hpp"
 
-namespace shbind {
+namespace ivy {
 class EntryPointNotFoundException : public std::runtime_error {
 public:
   EntryPointNotFoundException(const std::string &name,
@@ -116,4 +116,4 @@ using MeshPipelineProviderEXT = PipelineProviderForSpec<MeshPipelineSpecEXT>;
 using MeshPipelineProviderNV = PipelineProviderForSpec<MeshPipelineSpecNV>;
 using RaytracingPipelineProvider = PipelineProviderForSpec<ComputePipelineSpec>;
 using ComputePipelineProvider = PipelineProviderForSpec<ComputePipelineSpec>;
-} // namespace shbind
+} // namespace ivy

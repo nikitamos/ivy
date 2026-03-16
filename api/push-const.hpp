@@ -1,5 +1,5 @@
 #include "vulkan/vulkan.hpp"
-namespace shbind::api {
+namespace ivy::api {
 template <typename T> struct PushConstant {
   vk::PushConstantsInfo FullUpdateInfo(vk::PipelineLayout layout) const {
     return vk::PushConstantsInfo{
@@ -14,4 +14,4 @@ template <typename T> struct PushConstant {
     };
   }
 };
-} // namespace shbind::api
+} // namespace ivy::api

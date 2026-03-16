@@ -1,3 +1,10 @@
+cmake_minimum_required(VERSION 4.0)
+project(ShaderBinder LANGUAGES CXX)
+
+set(CMAKE_CXX_STANDARD 20)
+find_package(Vulkan REQUIRED)
+add_compile_definitions(VULKAN_HPP_NO_STRUCT_CONSTRUCTORS)
+
 set(SPIRV_CROSS_CLI OFF)
 set(SPIRV_CROSS_ENABLE_C_API OFF)
 set(SPIRV_CROSS_ENABLE_HLSL OFF)

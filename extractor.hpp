@@ -16,7 +16,7 @@
 #include <unordered_set>
 #include <utility>
 
-namespace shbind {
+namespace ivy {
 class BindingsExtractor {
 public:
   BindingsExtractor(spirv_cross::Compiler &compiler, HostTypeFactory &factory,
@@ -69,4 +69,4 @@ private:
   std::map<uint32_t, DescriptorSetMetadata> descriptor_sets_;
   std::vector<vk::PushConstantRange> ranges_;
 };
-} // namespace shbind
+} // namespace ivy

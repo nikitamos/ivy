@@ -12,7 +12,7 @@
 #include <utility>
 #include <vector>
 
-namespace shbind {
+namespace ivy {
 namespace spc = spirv_cross;
 static const std::string kInt8 = "int8_t";
 static const std::string kUInt8 = "uint8_t";
@@ -177,7 +177,7 @@ HostTypeFactory::GetAllKnownTypes() const {
                  [this](spc::ID id) { return type_map_.at(id); });
   return types;
 }
-void HostType::AcceptDeclare(shbind::IWriter &writer, std::ostream &out) {
+void HostType::AcceptDeclare(ivy::IWriter &writer, std::ostream &out) {
   writer.DeclareHostType(this, out);
 }
 void HostType::AcceptFwdDeclare(IWriter &writer, std::ostream &out) {
@@ -207,4 +207,4 @@ void HostArray::AcceptVarDeclare(IWriter &writer, const std::string &name,
                                  std::ostream &out) {
   writer.VarDeclareArray(this, name, out);
 }
-} // namespace shbind
+} // namespace ivy

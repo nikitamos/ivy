@@ -11,7 +11,7 @@
 #include <string>
 #include <vector>
 
-namespace shbind {
+namespace ivy {
 enum class TypeUsageFlagBits { ePushConst = 0x01 };
 using TypeUsageFlags = vk::Flags<TypeUsageFlagBits>;
 
@@ -97,4 +97,4 @@ protected:
   virtual void AcceptVarDeclare(IWriter &writer, const std::string &name,
                                 std::ostream &out) override;
 };
-} // namespace shbind
+} // namespace ivy

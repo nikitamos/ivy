@@ -3,7 +3,7 @@
 #include <array>
 #include <cstddef>
 
-namespace shbind::api {
+namespace ivy::api {
 struct VertexAttribute {
   uint32_t location;
   uint32_t component;
@@ -52,4 +52,4 @@ struct VertexShaderInputBase {
   // The number of locations is determined from the SPIR-V module
   std::array<vk::VertexInputAttributeDescription, VAttrCount> attrs;
 };
-}
+} // namespace ivy::api

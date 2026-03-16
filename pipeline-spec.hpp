@@ -3,7 +3,7 @@
 #include <optional>
 #include <string>
 
-namespace shbind {
+namespace ivy {
 struct GraphicsPipelineSpec {
   std::string vertex;
   std::optional<std::string> tesselation_control;
@@ -55,4 +55,4 @@ struct RaytracingPipelineSpec {
       spv::ExecutionModelAnyHitKHR,        spv::ExecutionModelClosestHitKHR,
   };
 };
-} // namespace shbind
+} // namespace ivy

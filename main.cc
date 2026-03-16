@@ -15,7 +15,7 @@
 
 #include "options.hpp"
 
-namespace shbind {
+namespace ivy {
 std::vector<char> ReadShader(const std::string_view path) {
   int a = 3;
   std::ifstream shader_file(path.data(),
@@ -43,11 +43,11 @@ bool GenerationOptions::Validate() const {
   }
   return true;
 }
-} // namespace shbind
+} // namespace ivy
 
 int main(int argc, char **argv) {
   std::string input_path, output_path;
-  shbind::GenerationOptions opts;
+  ivy::GenerationOptions opts;
   argparse::ArgumentParser argparser{"shader-binder", "0.1"};
   argparser.add_argument("input")
       .help("input SPIR-V file")
@@ -74,16 +74,16 @@ int main(int argc, char **argv) {
     out_stream = &out_file;
   }
 
-  auto src = shbind::ReadShader(input_path);
+  auto src = ivy::ReadShader(input_path);
   spirv_cross::Compiler core((uint32_t *)src.data(), src.size() / 4);
   if (src.size() % 4 != 0) {
     throw std::runtime_error("SPIR-V size is invalid");
   }
-  shbind::HostTypeFactory factory;
-  shbind::CxxWriter writer(opts);
-  shbind::BindingsExtractor extractor(core, factory);
+  ivy::HostTypeFactory factory;
+  ivy::CxxWriter writer(opts);
+  ivy::BindingsExtractor extractor(core, factory);
 
-  shbind::GraphicsPipelineProvider pr({});
+  ivy::GraphicsPipelineProvider pr({});
   extractor.ExtractBindings(pr);
   extractor.WriteToStream(*out_stream, writer);
 }

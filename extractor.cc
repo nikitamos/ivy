@@ -40,7 +40,7 @@ static inline void Throw64BitLocationUnshareble(uint32_t location) {
 
 // static vk::ShaderStage
 
-namespace shbind {
+namespace ivy {
 namespace spc = spirv_cross;
 void BindingsExtractor::ExtractPushConstants(
     const spirv_cross::ShaderResources &res) {
@@ -401,4 +401,4 @@ void BindingsExtractor::ExtractBindings(PipelineProvider &provider) {
     }
   }
 }
-} // namespace shbind
+} // namespace ivy

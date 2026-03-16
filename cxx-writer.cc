@@ -3,7 +3,7 @@
 #include "metadata.hpp"
 #include <string>
 
-namespace shbind {
+namespace ivy {
 template <typename T> struct PrintMember {
   PrintMember(T mem, std::ostream &out) {
     if constexpr (std::is_enum_v<T>) {
@@ -39,7 +39,7 @@ void CxxWriter::FwdDeclareArray(HostArray *host_type, std::ostream &out) {
 void CxxWriter::DeclareHostStruct(HostStruct *type, std::ostream &out) {
   Indent(out) << "struct [[gnu::packed]] " << type->name;
   if (type->usage & TypeUsageFlagBits::ePushConst) {
-    out << " : public " << "shbind::api::PushConstant<" << type->name << ">";
+    out << " : public " << "ivy::api::PushConstant<" << type->name << ">";
   }
   out << " {\n";
   uint32_t cur_size = 0;
@@ -110,11 +110,11 @@ void CxxWriter::WriteVertexAttributeInterface(
   static const std::string kStructName = "VertexShaderInputAttribute";
   Indent(out) << "struct " << kStructName
               << " : public "
-                 "shbind::api::VertexShaderInputBase<"
+                 "ivy::api::VertexShaderInputBase<"
               << attrs.size() << "> {\n";
   IncreaseIndent();
   for (auto &[name, max_component, attr] : attrs) {
-    Indent(out) << "static constexpr inline const shbind::api::VertexAttribute "
+    Indent(out) << "static constexpr inline const ivy::api::VertexAttribute "
                 << name << "{ .location = " << attr.location
                 << ", .component = " << attr.component
                 << ", .format = vk::Format(" << (uint64_t)attr.format
@@ -181,4 +181,4 @@ void CxxWriter::WritePushConstantRanges(std::span<vk::PushConstantRange> ranges,
   DecreaseIndent();
   Indent(out) << "};\n";
 }
-} // namespace shbind
+} // namespace ivy

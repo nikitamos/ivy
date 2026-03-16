@@ -8,7 +8,7 @@
 #include "metadata.hpp"
 #include "vulkan/vulkan.hpp"
 
-namespace shbind {
+namespace ivy {
 class IWriter {
 public:
   IWriter(std::string &&indent="  ") : indent_(std::move(indent)) {}
@@ -61,4 +61,4 @@ private:
   int indent_level_ = 0;
   std::string indent_;
 };
-} // namespace shbind
+} // namespace ivy

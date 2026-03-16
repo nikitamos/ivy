@@ -6,7 +6,7 @@
 #include <tuple>
 #include <type_traits>
 
-namespace shbind {
+namespace ivy {
 template <typename T>
 concept Enum = requires(T t) {
   { std::is_enum_v<T>() };
@@ -46,4 +46,4 @@ public:
 private:
   const GenerationOptions &opts_;
 };
-} // namespace shbind
+} // namespace ivy
