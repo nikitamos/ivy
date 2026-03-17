@@ -1,8 +1,11 @@
+#include <algorithm>
 #include <cctype>
 #include <cstdint>
 #include <fstream>
 #include <ios>
 #include <iostream>
+#include <memory>
+#include <ranges>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -14,6 +17,10 @@
 #include "host-types.hpp"
 
 #include "options.hpp"
+#include "pipeline-provider.hpp"
+#include "pipeline-spec.hpp"
+#include "spirv.hpp"
+#include "spirv_cross.hpp"
 
 namespace ivy {
 std::vector<char> ReadShader(const std::string_view path) {
@@ -43,11 +50,76 @@ bool GenerationOptions::Validate() const {
   }
   return true;
 }
+
+enum class PipelineType {
+  kGraphics,
+  kMeshNV,
+  kMeshEXT,
+  kCompute,
+  kRaytracingNV,
+  kRaytracingKHR
+};
+
+PipelineType GetExecutionModelPipelineType(spv::ExecutionModel em) {
+  switch (em) {
+  case spv::ExecutionModelVertex:
+  case spv::ExecutionModelTessellationControl:
+  case spv::ExecutionModelTessellationEvaluation:
+  case spv::ExecutionModelGeometry:
+  case spv::ExecutionModelFragment:
+    return PipelineType::kGraphics;
+  case spv::ExecutionModelGLCompute:
+  case spv::ExecutionModelKernel:
+    return PipelineType::kCompute;
+  case spv::ExecutionModelTaskNV:
+  case spv::ExecutionModelMeshNV:
+    return PipelineType::kMeshNV;
+  case spv::ExecutionModelRayGenerationKHR:
+  case spv::ExecutionModelIntersectionKHR:
+  case spv::ExecutionModelAnyHitKHR:
+  case spv::ExecutionModelClosestHitKHR:
+  case spv::ExecutionModelMissKHR:
+  case spv::ExecutionModelCallableKHR:
+    return PipelineType::kRaytracingKHR; // TODO: or NV?
+  case spv::ExecutionModelTaskEXT:
+  case spv::ExecutionModelMeshEXT:
+    return PipelineType::kMeshEXT;
+  default:
+  case spv::ExecutionModelMax:
+    throw std::runtime_error("Invalid execution model");
+  }
+}
+
+std::vector<std::unique_ptr<PipelineProvider>>
+TryGuessPipeline(spirv_cross::Compiler &compiler) {
+  auto entry_points = compiler.get_entry_points_and_stages();
+  // Check that all execution models belong to the same pipeline type.
+  // TODO: if there are multiple pipeline types detected, try construct each
+  // one.
+  if (entry_points.empty()) {
+    return {};
+  }
+  auto model = GetExecutionModelPipelineType(entry_points[0].execution_model);
+  bool all_same = std::ranges::all_of(
+      entry_points | std::views::transform([](const auto &ep) {
+        return GetExecutionModelPipelineType(ep.execution_model);
+      }),
+      [model](PipelineType pt) { return pt == model; });
+  if (!all_same) {
+    throw std::runtime_error("inconsistent shader module");
+  }
+  // std::unique_ptr<typename Tp>
+
+  return {};
+}
+
 } // namespace ivy
 
 int main(int argc, char **argv) {
   std::string input_path, output_path;
   ivy::GenerationOptions opts;
+  ivy::GraphicsPipelineSpec graphics, mesh_ext, mesh_nv, compute;
+
   argparse::ArgumentParser argparser{"shader-binder", "0.1"};
   argparser.add_argument("input")
       .help("input SPIR-V file")
@@ -83,7 +155,7 @@ int main(int argc, char **argv) {
   ivy::CxxWriter writer(opts);
   ivy::BindingsExtractor extractor(core, factory);
 
-  ivy::GraphicsPipelineProvider pr({});
+  ivy::GraphicsPipelineProvider pr(ivy::GraphicsPipelineSpec{});
   extractor.ExtractBindings(pr);
   extractor.WriteToStream(*out_stream, writer);
 }

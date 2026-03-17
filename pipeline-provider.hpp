@@ -10,6 +10,7 @@
 #include <boost/pfr.hpp>
 
 #include "spirv.hpp"
+#include "spirv_cfg.hpp"
 #include "spirv_common.hpp"
 #include "spirv_cross.hpp"
 #include <vulkan/vulkan.hpp>
@@ -52,13 +53,14 @@ private:
 
 // using TSpec = ComputePipelineSpec;
 // #define VModelCount 1
-// using VModels = ComputePipelineSpec::kModels;
+// #define VModels ComputePipelineSpec::kModels
 template <typename TSpec, size_t VModelCount,
           std::array<spv::ExecutionModel, VModelCount> VModels>
 class PipelineProviderFromSpec : public PipelineProvider {
 public:
   static_assert(boost::pfr::tuple_size_v<TSpec> == VModelCount);
-  PipelineProviderFromSpec() : PipelineProvider(VModelCount) {}
+  PipelineProviderFromSpec(TSpec spec)
+      : PipelineProvider(VModelCount), spec_(std::move(spec)) {}
   static inline constexpr const size_t kModelCount = VModelCount;
 
 protected:
@@ -66,12 +68,13 @@ protected:
     if (cur_stage >= VModelCount) {
       return std::nullopt;
     }
-    return kGetterProviders.res[cur_stage++](spec_);
+    return kGetterProviders.getters[cur_stage++](spec_);
   }
 
 private:
   using GetSpecImplFn =
       std::function<std::optional<StageInfo>(const TSpec &spec)>;
+  using SetSpecImplFn = std::function<void(TSpec &spec, std::string &&s)>;
   static bool HasValue(const std::string &s) { return true; }
   static bool HasValue(const std::optional<std::string> &opt) {
     return opt.has_value();
@@ -88,25 +91,59 @@ private:
     }
     return std::nullopt;
   }
+  template <size_t N> static void SetStageName(TSpec &spec, std::string &&s) {}
 
-  template <size_t count> struct SpecGetterProvider {
-    SpecGetterProvider() {
-      SpecGetterProvider<count - 1> prev;
-      std::ranges::copy(prev.res.begin(), prev.res.end(), res.begin());
-      res[count - 1] = GetStageName<count - 1>;
+  template <size_t count> struct SpecGetSetProvider {
+    SpecGetSetProvider() {
+      SpecGetSetProvider<count - 1> prev;
+      std::ranges::copy(prev.getters.begin(), prev.getters.end(),
+                        getters.begin());
+      std::ranges::copy(prev.setters.begin(), prev.setters.end(),
+                        setters.begin());
+      getters[count - 1] = GetStageName<count - 1>;
+      setters[count - 1] = SetStageName<count - 1>;
     }
-    std::array<GetSpecImplFn, count> res;
+    std::array<GetSpecImplFn, count> getters;
+    std::array<SetSpecImplFn, count> setters;
   };
-  template <> struct SpecGetterProvider<1> {
-    SpecGetterProvider() : res{GetStageName<0>} {}
-    std::array<GetSpecImplFn, 1> res;
+  template <> struct SpecGetSetProvider<1> {
+    SpecGetSetProvider() : getters{GetStageName<0>}, setters{SetStageName<0>} {}
+    std::array<GetSpecImplFn, 1> getters;
+    std::array<SetSpecImplFn, 1> setters;
+  };
+
+  class Builder {
+  public:
+    Builder() {}
+    Builder &SetStageName(spv::ExecutionModel model, std::string name) {
+      size_t i = 0;
+      for (; i < VModels.size(); ++i) {
+        if (VModels[i] == model) {
+          break;
+        }
+      }
+      if (i == VModels.size()) {
+        throw std::invalid_argument(
+            "execution model is not present in the pipeline");
+      }
+      kGetterProviders.setters[i](spec_, std::move(name));
+      return *this;
+    }
+    [[nodiscard]]
+    PipelineProviderFromSpec Build() {
+      return PipelineProviderFromSpec(std::move(spec_));
+    }
+
+  private:
+    TSpec spec_;
   };
 
   // TODO: make static?
-  const SpecGetterProvider<VModelCount> kGetterProviders;
+  static const SpecGetSetProvider<VModelCount> kGetterProviders;
   TSpec spec_;
 };
 
+#ifndef VModelCount
 template <typename T>
 using PipelineProviderForSpec =
     PipelineProviderFromSpec<T, T::kModels.size(), T::kModels>;
@@ -116,4 +153,5 @@ using MeshPipelineProviderEXT = PipelineProviderForSpec<MeshPipelineSpecEXT>;
 using MeshPipelineProviderNV = PipelineProviderForSpec<MeshPipelineSpecNV>;
 using RaytracingPipelineProvider = PipelineProviderForSpec<ComputePipelineSpec>;
 using ComputePipelineProvider = PipelineProviderForSpec<ComputePipelineSpec>;
+#endif
 } // namespace ivy
